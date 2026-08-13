@@ -1,0 +1,230 @@
+{
+  "version": 20,
+  "match": {
+    "players": 8,
+    "minPlayers": 2,
+    "initialInfected": 0,
+    "winCondition": "lastPlayerStanding",
+    "countdownSeconds": 5,
+    "phases": [
+      { "kind": "day", "seconds": 0 }
+    ]
+  },
+  "world": {
+    "size": 4096,
+    "chunk": 64,
+    "cellPx": 4
+  },
+  "movement": {
+    "minerWalk": 100,
+    "minerSprint": 145,
+    "infectedDisguised": 100,
+    "infectedHunt": 180,
+    "playerRadiusCells": 1.5,
+    "staminaMax": 100,
+    "sprintDrainPerSec": 22,
+    "staminaRegenPerSec": 14
+  },
+  "dig": {
+    "reachCells": 9.5,
+    "brushRadiusCells": 4.2,
+    "damagePerTick": 8,
+    "rubbleGainChance": 0.18,
+    "rubbleMax": 6
+  },
+  "materials": {
+    "hp": { "1": 8, "2": 16, "3": 40, "4": 18, "5": 10, "6": 120, "7": 60, "8": 255, "9": 255, "10": 24, "11": 255, "12": 22, "13": 28, "14": 16, "15": 26, "16": 38, "17": 14 },
+    "monsterBreakable": [6, 7],
+    "monsterBreakDamagePerTick": 2
+  },
+  "oxygen": {
+    "emergencySeconds": 60,
+    "recoveryPerSecond": 8,
+    "ventilationRecomputeTicks": 30
+  },
+  "capture": {
+    "windupMs": 400,
+    "rangeCells": 4.0,
+    "cooldownMs": 900,
+    "conversionMs": 4000,
+    "huntRevealCooldownMs": 2500
+  },
+  "vision": {
+    "dayRadiusCells": 42,
+    "dayFogOpacity": 1.0,
+    "nameRangeCells": 18
+  },
+  "combat": {
+    "baseHealth": 100,
+    "bombDamage": 100,
+    "guardianDamage": 100,
+    "napalmDamage": 100,
+    "napalmDamageIntervalTicks": 30
+  },
+  "construction": {
+    "rigidWall": { "gemCostPerCell": 1, "lengthCells": 5, "reachCells": 7, "buildIntervalTicks": 3 }
+  },
+  "automation": {
+    "base": { "commonCost": 18, "ironCost": 4, "placementReachCells": 14, "footprintRadiusCells": 5, "siteClearanceRadiusCells": 13, "collisionRadiusCells": 8.5, "interactRangeCells": 12, "maxPerPlayer": 1, "explosionRangeCells": 10, "explosionHalfWidthCells": 2 },
+    "miner": { "commonCost": 7, "ironCost": 2, "maxPerBase": 6, "workRadiusCells": 36, "speed": 64, "bodyRadiusCells": 0.8, "digReachCells": 4, "digRadiusCells": 2.4, "digDamage": 4, "digIntervalTicks": 3, "retargetTicks": 15 },
+    "infrastructure": {
+      "placementReachCells": 13,
+      "baseGridRadiusCells": 29,
+      "relayLinkRadiusCells": 25,
+      "baseCapacity": 40,
+      "batteryCapacity": 240,
+      "powerPerCoal": 120,
+      "generatorIntervalTicks": 150,
+      "gridIntervalTicks": 30,
+      "sentryFireIntervalTicks": 105,
+      "sentryShellFuseTicks": 24,
+      "sentryShellRangeCells": 5,
+      "arcIntervalTicks": 60,
+      "arcDamage": 34,
+      "arcStunTicks": 36,
+      "shieldDamageMultiplier": 0.45,
+      "repairIntervalTicks": 60,
+      "repairAmount": 32,
+      "refineryBonusEvery": 2,
+      "barracksSpawnIntervalTicks": 180,
+      "barracksDiggerCap": 4,
+      "barracksHunterCap": 2,
+      "barracksDiggerCommonCost": 3,
+      "barracksDiggerIronCost": 1,
+      "barracksHunterCommonCost": 4,
+      "barracksHunterIronCost": 2,
+      "hunterRangeCells": 42,
+      "hunterSpeed": 82,
+      "hunterDamage": 20,
+      "hunterAttackIntervalTicks": 30,
+      "drillIntervalTicks": 4,
+      "drillRadiusCells": 2.8,
+      "drillDamage": 10,
+      "drillWorkRadiusCells": 30,
+      "cartSpeedCellsPerTick": 0.18,
+      "cartDeliveryCommon": 1,
+      "trackMinerSpeedMultiplier": 1.35,
+      "forgeSpeedPercentPerStack": 20,
+      "forgeDigDamagePerStack": 2,
+      "forgeDigRadiusPerStack": 0.25,
+      "forgeWorkRadiusPerStack": 6,
+      "forgeMaxStacks": 4
+    }
+  },
+  "items": {
+    "bomb": {
+      "fuseTicks": 90,
+      "blastRangeCells": 8,
+      "blastHalfWidthCells": 2,
+      "blastNoiseFringeCells": 2,
+      "blastWobbleCells": 1,
+      "blastStepTicks": 1,
+      "blastVisualTicks": 12,
+      "maxActivePerPlayer": 1
+    },
+    "pick": { "gemCost": 5, "durabilityTicks": 300 },
+    "charge": { "supportCost": 2, "collapseRadiusCells": 8, "fuseTicks": 45 }
+  },
+  "bombUpgrades": {
+    "speed": { "maxLevel": 4, "fuseReductionTicks": 12, "minFuseTicks": 36, "copperBase": 3, "copperPerLevel": 2 },
+    "range": { "maxLevel": 4, "rangePerLevelCells": 2, "ironBase": 3, "ironPerLevel": 2 },
+    "wide": { "requiresRangeLevel": 2, "goldCost": 3, "ironCost": 2 },
+    "width": { "maxLevel": 3, "goldBase": 2, "goldPerLevel": 2, "ironBase": 2, "ironPerLevel": 1 },
+    "diagonal": { "requiresRangeLevel": 2, "fossilCost": 4, "goldCost": 1 },
+    "twin": { "requiresSpeedLevel": 2, "platinumCost": 2, "copperCost": 3 },
+    "capacity": { "maxLevel": 3, "platinumBase": 1, "platinumPerLevel": 1, "copperBase": 3, "copperPerLevel": 2 },
+    "remote": { "requiresSpeedLevel": 2, "goldCost": 3, "copperCost": 3 },
+    "shield": { "requiresWidthLevel": 2, "fossilCost": 6, "platinumCost": 2 },
+    "prospector": { "requiresRangeLevel": 2, "goldCost": 2, "fossilCost": 3 }
+  },
+  "playerUpgrades": {
+    "vision": { "maxLevel": 4, "radiusPerLevelCells": 7, "fossilBase": 2, "fossilPerLevel": 2 },
+    "mobility": { "maxLevel": 4, "speedPercentPerLevel": 8, "copperBase": 4, "copperPerLevel": 2 },
+    "vitality": { "maxLevel": 4, "healthPerLevel": 50, "ironBase": 4, "ironPerLevel": 3 }
+  },
+  "gems": {
+    "perGemRockMin": 1,
+    "perGemRockMax": 3,
+    "perReinforceRockMin": 1,
+    "perReinforceRockMax": 1,
+    "surviveBonus": 5
+  },
+  "zombies": {
+    "perPlayer": 0,
+    "releaseAfterSeconds": 0,
+    "aggroRadiusCells": 220,
+    "retargetTicks": 90,
+    "pathRefreshTicks": 15,
+    "speed": 125,
+    "attackRangeCells": 2.8,
+    "attackCooldownMs": 1400
+  },
+  "treasure": {
+    "ruinCount": 84,
+    "ruinSpawnClearanceCells": 90,
+    "guardiansPerRuin": 2,
+    "guardianAggroRadiusCells": 34,
+    "guardianLeashRadiusCells": 18,
+    "guardianSpeed": 82,
+    "guardianAttackRangeCells": 2.2,
+    "guardianAttackCooldownTicks": 45,
+    "chestInteractRangeCells": 2.5
+  },
+  "specialWeapons": {
+    "dynamite": { "fuseTicks": 54, "rangeCells": 16, "halfWidthCells": 1 },
+    "c4": { "fuseTicks": 36000, "rangeCells": 12, "halfWidthCells": 3 },
+    "cluster": { "fuseTicks": 75, "rangeCells": 9, "childCount": 6, "scatterDelayTicks": 8, "childFlightTicks": 22, "childFuseTicks": 54, "childRangeCells": 6, "scatterRadiusCells": 5 },
+    "napalm": { "fuseTicks": 70, "rangeCells": 12, "burnTicks": 300 },
+    "nuke": { "fuseTicks": 150, "rangeCells": 28, "halfWidthCells": 5 },
+    "turret": { "rangeCells": 28, "fireIntervalTicks": 90, "shellFuseTicks": 24, "shellRangeCells": 5 }
+  },
+  "network": {
+    "serverTickHz": 30,
+    "snapshotHz": 15,
+    "inputSendHz": 30,
+    "interestRadiusChunks": 2,
+    "reconnectGraceSeconds": 30
+  },
+  "mapgen": {
+    "chambersMin": 192,
+    "chambersMax": 384,
+    "chamberRadiusMin": 8,
+    "chamberRadiusMax": 18,
+    "chamberSpacing": 110,
+    "extraLoopEdges": 128,
+    "secondaryCaveZones": 160,
+    "spawnMinDistCells": 720,
+    "spawnPocketRadiusCells": 12,
+    "ventCount": 224,
+    "gemClusters": 1050,
+    "singleGemDeposits": 11000,
+    "reinforceGemClusters": 192,
+    "goldSingles": 520,
+    "goldClusters": 96,
+    "fossilSingles": 680,
+    "fossilClusters": 88,
+    "copperSingles": 1800,
+    "copperClusters": 280,
+    "ironSingles": 1500,
+    "ironClusters": 240,
+    "platinumSingles": 260,
+    "platinumClusters": 52,
+    "coalSingles": 2100,
+    "coalClusters": 360,
+    "ruinCount": 84,
+    "ancientTunnelNetworks": 56,
+    "ritualSites": 6,
+    "oasisSites": 6,
+    "ancientVaultSites": 10,
+    "ambientEnemies": 64,
+    "landmarkSpawnClearanceCells": 100,
+    "bedrockFormations": 704,
+    "bedrockThicknessMinCells": 7,
+    "bedrockThicknessMaxCells": 11,
+    "bedrockSpawnClearanceCells": 70,
+    "boulderBlocks": 288,
+    "unstablePatches": 480,
+    "maxOpenFraction": 0.28,
+    "maxRegenAttempts": 12
+  }
+}

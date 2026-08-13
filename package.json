@@ -1,0 +1,23 @@
+{
+  "name": "the-burrow",
+  "private": true,
+  "version": "0.1.0",
+  "description": "The Burrow — underground last-player-standing Bomberman (Cloudflare-native)",
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"pnpm --filter @burrow/match-server dev\" \"pnpm --filter @burrow/client dev\"",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "deploy": "./deploy.sh"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.4",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

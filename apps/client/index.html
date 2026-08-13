@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Burrow</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Asap+Condensed:wght@400;500;600;700&amp;family=Goldman:wght@400;500;600;700&amp;family=Heebo:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --cream: #fff3d4;
+        --paper: #ead8ad;
+        --ink: #251d22;
+        --coal: #171419;
+        --coal-2: #24202a;
+        --orange: #f49a43;
+        --orange-hot: #ffbd57;
+        --mint: #69dca0;
+        --sky: #62c8e8;
+        --danger: #ef5f55;
+        --violet: #a98add;
+        --panel: rgba(31, 26, 32, 0.94);
+        --panel-soft: rgba(36, 31, 38, 0.84);
+        --line: rgba(255, 235, 190, 0.16);
+        --deep-shadow: 0 16px 45px rgba(5, 3, 7, 0.52), 0 3px 0 rgba(0, 0, 0, 0.35);
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 100%; height: 100%; overflow: hidden; color: var(--cream);
+        background: #09070b; font-family: "Avenir Next", "Trebuchet MS", system-ui, sans-serif;
+      }
+      button, input { font: inherit; }
+      button { border: 0; }
+      #game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+      #vignette {
+        position: absolute; inset: 0; z-index: 4; pointer-events: none;
+        box-shadow: inset 0 0 130px 35px rgba(4, 2, 5, .58);
+        background: linear-gradient(180deg, rgba(8,5,9,.12), transparent 20%, transparent 75%, rgba(8,5,9,.25));
+      }
+      .hidden { display: none !important; }
+
+      /* ---------------------------------------------------------- shared */
+      .panel {
+        background: linear-gradient(145deg, rgba(48, 40, 44, .96), rgba(23, 20, 26, .96));
+        border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--deep-shadow);
+      }
+      .eyebrow { color: #c7ad80; text-transform: uppercase; letter-spacing: 2.2px; font-size: 9px; font-weight: 900; }
+      .game-button {
+        position: relative; padding: 13px 28px; border-radius: 12px; cursor: pointer;
+        color: #2b1a0b; background: linear-gradient(#ffc968, #eb9139); font-weight: 950;
+        text-transform: uppercase; letter-spacing: 1.4px; box-shadow: 0 5px 0 #884b23, 0 10px 25px rgba(0,0,0,.35);
+        transition: transform .15s, filter .15s, box-shadow .15s;
+      }
+      .game-button:hover { filter: brightness(1.08); transform: translateY(-2px); box-shadow: 0 7px 0 #884b23, 0 12px 28px rgba(0,0,0,.4); }
+      .game-button:active { transform: translateY(4px); box-shadow: 0 1px 0 #884b23; }
+      .game-button.secondary { color: var(--cream); background: linear-gradient(#504657, #342e3a); box-shadow: 0 5px 0 #18151c; }
+      .game-button:disabled { cursor: default; filter: saturate(.2); opacity: .45; transform: none; box-shadow: 0 3px 0 #19161c; }
+
+      /* --------------------------------------------------------- screens */
+      .overlay {
+        position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+        overflow:hidden; background:#040207; font-family:"Asap Condensed",sans-serif;
+      }
+      .overlay::before {
+        content:""; position:absolute; inset:0; pointer-events:none;
+        background:radial-gradient(circle at 50% 43%,rgba(100,22,18,.08),transparent 36%),linear-gradient(rgba(0,0,0,.02),rgba(0,0,0,.28));
+      }
+      .menu-card { position:relative; width:602px; height:570px; flex:none; padding:80px; color:#bdb7a5; background:transparent url("/menu/menu-card.webp") center/100% 100% no-repeat; filter:drop-shadow(0 28px 65px rgba(0,0,0,.62)); text-align:center; }
+      .menu-content { width:442px; height:410px; display:flex; flex-direction:column; gap:20px; }
+      .menu-header { width:442px; height:270px; display:flex; flex-direction:column; gap:10px; }
+      .menu-spacer { width:442px; height:99px; flex:none; }
+      .menu-title-logo { width:442px; height:69px; flex:none; background:url("/menu/title-logo.webp") center/100% 100% no-repeat; }
+      .title-tag { color:#bdb7a5; font:500 19px/1.48 "Asap Condensed",sans-serif; letter-spacing:1.1px; text-align:center; text-transform:uppercase; opacity:.7; white-space:nowrap; }
+      .menu-card .subtitle { width:442px; margin:0; color:#bdb7a5; font:400 15px/1.48 "Asap Condensed",sans-serif; text-align:center; opacity:.78; }
+      .menu-actions { position:relative; z-index:2; width:442px; height:63px; display:flex; gap:20px; }
+      .screen-button { width:211px; height:63px; flex:none; cursor:pointer; color:#bdb7a5; background:transparent center/100% 100% no-repeat; border:0; font:500 25px/1 "Asap Condensed",sans-serif; text-align:center; text-transform:uppercase; transition:filter .15s,transform .15s; }
+      .screen-button.dark { background-image:url("/menu/button-dark.webp"); }.screen-button.red { background-image:url("/menu/button-red.webp"); }
+      .screen-button > span { display:block; transform:translateY(-2px); }
+      .screen-button:hover { filter:brightness(1.32); transform:translateY(-1px); }.screen-button:active { transform:translateY(2px); }.screen-button:disabled { cursor:default; filter:grayscale(.8); opacity:.42; transform:none; }
+      .menu-footer { position:relative; z-index:2; width:442px; height:37px; display:flex; align-items:center; justify-content:flex-start; padding:0 27px; background:url("/menu/footer-frame.webp") center/100% 100% no-repeat; }
+      .dev-toggle { min-width:0; display:flex; align-items:center; gap:8px; color:#8f8a7f; background:none; border:0; font:400 10.5px/1 "Heebo",sans-serif; text-align:left; white-space:nowrap; }
+      .dev-toggle input { width:13px; height:13px; flex:none; appearance:none; cursor:pointer; transform:translateY(-1px); background:#090b0b; border:1px solid #77756d; border-radius:2px; }
+      .dev-toggle input:checked { background:#c13220; border-color:#f45445; box-shadow:inset 0 0 0 3px #111; }
+      .map-size { margin-left:auto; display:flex; align-items:center; gap:5px; color:#8f8a7f; font:400 10.5px/1 "Heebo",sans-serif; white-space:nowrap; }
+      .map-size button { padding:3px 7px; color:#8f8a7f; background:#090b0b; border:1px solid #55534c; border-radius:2px; cursor:pointer; font:400 10.5px/1 "Heebo",sans-serif; }
+      .map-size button.active { color:#f45445; border-color:#f45445; }
+      #menu-status { position:absolute; left:80px; right:80px; bottom:46px; min-height:16px; color:#cf5749; font:500 10px/1.2 "Heebo",sans-serif; text-align:center; text-transform:none; }
+
+      .lobby-card { position:relative; width:1080px; height:680px; flex:none; color:#bdb7a5; filter:drop-shadow(0 28px 65px rgba(0,0,0,.68)); text-align:left; }
+      .lobby-grid { position:absolute; top:70px; left:16px; width:1048px; height:540px; display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+      .lobby-panel { position:relative; min-width:0; height:540px; padding:42px 42px 34px; background:transparent url("/hud/tool-hero-panel.webp") center/100% 100% no-repeat; }
+      .lobby-panel-head { height:55px; display:flex; align-items:flex-start; justify-content:space-between; gap:18px; border-bottom:1px solid rgba(193,50,32,.68); }
+      .lobby-panel-head span { display:block; color:#777268; font:500 9px/1 "Goldman",sans-serif; letter-spacing:1.4px; text-transform:uppercase; }
+      .lobby-panel-head h3 { margin-top:5px; color:#c13220; font:700 27px/1 "Asap Condensed",sans-serif; letter-spacing:.4px; text-transform:uppercase; }
+      .lobby-channel-light { margin-top:9px; color:#7ea467; font:700 17px/1 "Goldman",sans-serif; text-shadow:0 0 9px rgba(126,164,103,.65); }
+      #lobby-count { flex:none; margin-top:11px; color:#bdb7a5; font:500 12px/1 "Goldman",sans-serif; }
+      .lobby-meta { height:45px; display:flex; align-items:center; justify-content:space-between; gap:12px; margin:13px 0 11px; padding:0 17px; background:url("/menu/footer-frame.webp") center/100% 100% no-repeat; }
+      #lobby-connection { min-width:0; overflow:hidden; color:#d9a05d; font:500 10px/1 "Heebo",sans-serif; letter-spacing:.5px; text-overflow:ellipsis; white-space:nowrap; }
+      #lobby-connection.connected { color:#91b975; }
+      .lobby-copy-button { flex:none; cursor:pointer; color:#8e897f; background:none; font:600 10px/1 "Asap Condensed",sans-serif; letter-spacing:.7px; text-transform:uppercase; transition:color .15s; }
+      .lobby-copy-button:hover { color:#f19e74; }
+      .lobby-list { height:244px; overflow:auto; display:flex; flex-direction:column; gap:7px; padding:1px 3px 3px; scrollbar-color:#5d2e29 transparent; scrollbar-width:thin; }
+      .lobby-player { min-height:50px; display:grid; grid-template-columns:34px minmax(0,1fr) auto; align-items:center; gap:10px; padding:5px 17px 6px 12px; background:transparent url("/menu/footer-frame.webp") center/100% 100% no-repeat; }
+      .lobby-player-icon { width:27px; height:27px; display:grid; place-items:center; color:#d24a36; background:#090b0b; border:1px solid #514d46; border-radius:50%; font:700 15px/1 "Asap Condensed",sans-serif; }
+      .lobby-player-copy { min-width:0; }
+      .lobby-player-copy strong { display:block; overflow:hidden; color:#bdb7a5; font:600 15px/1.1 "Asap Condensed",sans-serif; text-overflow:ellipsis; white-space:nowrap; }
+      .lobby-player-copy small { display:block; margin-top:3px; color:#68655e; font:500 9px/1 "Heebo",sans-serif; text-transform:uppercase; }
+      .lobby-player-badge { color:#c55345; font:500 9px/1 "Goldman",sans-serif; text-transform:uppercase; }
+      .lobby-player.self .lobby-player-icon { color:#ffcf69; border-color:#8c5534; box-shadow:0 0 9px rgba(213,74,54,.2); }
+      .lobby-player.empty { opacity:.48; }.lobby-player.empty .lobby-player-icon { color:#65615a; }.lobby-player.empty .lobby-player-badge { color:#66625c; }
+      .lobby-note { height:31px; display:flex; align-items:center; color:#716e66; font:400 10px/1.25 "Heebo",sans-serif; text-transform:none; }
+      .lobby-actions { width:100%; height:58px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:center; gap:10px; }
+      .lobby-button { width:100%; height:56px; cursor:pointer; color:#bdb7a5; background:transparent center/100% 100% no-repeat; font:600 20px/1 "Asap Condensed",sans-serif; letter-spacing:.5px; text-align:center; text-transform:uppercase; transition:filter .15s,transform .15s; }
+      .lobby-button.red { background-image:url("/menu/button-red.webp"); }.lobby-button.dark { background-image:url("/menu/button-dark.webp"); }
+      .lobby-button:hover { filter:brightness(1.28); transform:translateY(-1px); }.lobby-button:active { transform:translateY(1px); }
+      #lobby-host-note { display:none; color:#7e796f; font:500 11px/1 "Heebo",sans-serif; text-align:center; }
+      .lobby-chat-log { height:318px; overflow:auto; margin:13px 0 10px; padding:4px 6px; background:rgba(4,6,6,.43); border:1px solid rgba(82,76,69,.34); scrollbar-color:#5d2e29 transparent; scrollbar-width:thin; }
+      .lobby-chat-empty { height:100%; display:grid; place-items:center; color:#5e5b55; font:500 10px/1.4 "Goldman",sans-serif; letter-spacing:1px; text-align:center; text-transform:uppercase; }
+      .lobby-chat-message { padding:9px 10px 10px; border-bottom:1px solid rgba(105,92,80,.24); font-family:"Heebo",sans-serif; text-transform:none; }
+      .lobby-chat-message:last-child { border-bottom:0; }
+      .lobby-chat-message header { display:flex; justify-content:space-between; gap:12px; margin-bottom:4px; }
+      .lobby-chat-message strong { color:#c55345; font:600 11px/1 "Goldman",sans-serif; }.lobby-chat-message.mine strong { color:#d7a55c; }
+      .lobby-chat-message time { color:#58564f; font:500 9px/1 "Heebo",sans-serif; }
+      .lobby-chat-message p { color:#aaa493; font:400 13px/1.35 "Heebo",sans-serif; overflow-wrap:anywhere; }
+      .lobby-chat-message.system p { color:#777268; font-style:italic; }
+      .lobby-chat-form { height:49px; display:grid; grid-template-columns:minmax(0,1fr) 112px; gap:9px; }
+      .lobby-chat-field { min-width:0; height:45px; display:flex; align-items:center; padding:0 18px; background:url("/menu/footer-frame.webp") center/100% 100% no-repeat; }
+      #lobby-chat-input { width:100%; color:#bdb7a5; background:transparent; border:0; outline:0; font:400 12px/1 "Heebo",sans-serif; }
+      #lobby-chat-input::placeholder { color:#5f5c55; }
+      .lobby-send { width:112px; height:45px; cursor:pointer; color:#d7b1a8; background:url("/menu/button-red.webp") center/100% 100% no-repeat; font:600 15px/1 "Asap Condensed",sans-serif; text-transform:uppercase; transition:filter .15s; }
+      .lobby-send:hover { filter:brightness(1.28); }
+      .lobby-chat-hint { margin-top:7px; color:#5c5952; font:500 8px/1 "Goldman",sans-serif; letter-spacing:.8px; text-align:right; text-transform:uppercase; }
+      .end-card { position:relative; width:min(760px,calc(100vw - 40px)); padding:38px; text-align:center; }
+      #end-title { margin-bottom:24px; color:var(--orange-hot); font-size:34px; font-weight:950; letter-spacing:2px; text-transform:uppercase; }
+      table { width:100%; border-collapse:separate; border-spacing:0 6px; margin-bottom:25px; }
+      td, th { padding:9px 12px; text-align:left; font-size:12px; }
+      th { color:#bba987; text-transform:uppercase; letter-spacing:1px; }
+      td { background:rgba(255,255,255,.045); }
+      td:first-child { border-radius:9px 0 0 9px; } td:last-child { border-radius:0 9px 9px 0; }
+
+      /* ------------------------------------------------ exported HUD */
+      #hud { --hud-red:#f74640; --hud-green:#96d72f; --hud-text:#bdb7a5; position:absolute; inset:0; z-index:6; display:none; pointer-events:none; font-family:"Goldman",sans-serif; text-transform:uppercase; }
+      #hud.active { display:block; }
+      #hud-decals { position:absolute; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
+      .hud-corner-decal { position:absolute; width:min(var(--decal-responsive-width),var(--decal-width)); height:auto; max-height:62.5vh; display:block; object-fit:contain; pointer-events:none; user-select:none; }
+      .hud-corner-decal.top-left { --decal-responsive-width:34.7vw; --decal-width:666px; top:0; left:0; object-position:top left; }
+      .hud-corner-decal.top-right { --decal-responsive-width:33.33vw; --decal-width:640px; top:0; right:0; object-position:top right; }
+      .hud-corner-decal.bottom-left { --decal-responsive-width:30.4vw; --decal-width:584px; bottom:0; left:0; object-position:bottom left; }
+      .hud-corner-decal.bottom-right { --decal-responsive-width:29.7vw; --decal-width:570px; right:0; bottom:0; object-position:bottom right; }
+
+      #pack { position:absolute; top:20px; left:20px; width:319px; height:225px; display:flex; flex-direction:column; gap:5px; padding:10px; border:0; border-radius:0; background:transparent url("/hud/inventory-frame.webp") center/100% 100% no-repeat; transform:scale(1.1); transform-origin:top left; }
+      .pack-head { width:299px; height:45px; display:flex; align-items:center; gap:10px; padding:0 15px; }
+      .pack-head > div { min-width:0; flex:1; }
+      .inventory-heading { color:var(--hud-red); font-size:16px; font-weight:400; line-height:1.48; }
+      #player-label { display:none; }
+      #skill-toggle { width:135px; height:46px; flex:none; pointer-events:auto; cursor:pointer; color:var(--hud-red); background:transparent url("/hud/red-button-frame.webp") center/100% 100% no-repeat; font:400 16px/1.48 "Goldman",sans-serif; text-transform:uppercase; transition:filter .15s; }
+      #skill-toggle:hover { filter:brightness(1.35); }
+      #resources { width:299px; height:139px; display:grid; grid-template-columns:repeat(2,144px); grid-auto-rows:31px; gap:5px 4px; padding:0 4px; }
+      .resource-chip { width:144px; height:32px; display:flex; align-items:center; gap:4px; padding:4px 8px; background:transparent url("/hud/resource-chip.webp") center/100% 100% no-repeat; }
+      .resource-chip span { min-width:0; flex:1; overflow:hidden; color:var(--hud-text); font:400 12px/1.48 "Heebo",sans-serif; white-space:nowrap; }
+      .resource-chip b { color:var(--hud-red); font:400 16px/1.48 "Goldman",sans-serif; font-variant-numeric:tabular-nums; }
+      .resource-gem { width:14px; height:24px; flex:none; display:block; background:center/100% 100% no-repeat; }
+      .resource-gem.gem { background-image:url("/materials/common-gem.webp"); }.resource-gem.gold { background-image:url("/materials/gold.webp"); }
+      .resource-gem.copper { background-image:url("/materials/copper.webp"); }.resource-gem.platinum { background-image:url("/materials/platinum.webp"); }
+      .resource-gem.crystal { background-image:url("/materials/reinforcement-crystal.webp"); }.resource-gem.fossil { background-image:url("/materials/fossil.webp"); }
+      .resource-gem.iron { background-image:url("/materials/iron.webp"); }.resource-gem.rubble { background-image:url("/materials/rubble.webp"); }
+      .resource-gem.coal { background:linear-gradient(135deg,transparent 17%,#2a2d2f 18% 76%,transparent 77%) center/14px 20px no-repeat; filter:drop-shadow(1px 1px 0 #050606); }
+      #pack-meta { width:299px; height:9px; color:#8f8a7d; font:400 7px/9px "Goldman",sans-serif; text-align:center; letter-spacing:.15px; background:url("/hud/divider.webp") left center/72px 7px no-repeat,url("/hud/divider.webp") right center/72px 7px no-repeat; }
+
+      #phase-banner { position:absolute; top:20px; left:calc(50% + 6px); width:653px; height:102px; transform:translateX(-50%); display:flex; flex-direction:column; gap:10px; align-items:center; padding:14px 0; text-align:center; background:transparent url("/hud/match-status-frame.webp") center/100% 100% no-repeat; }
+      #phase-name { color:var(--hud-red); font-size:27px; font-weight:400; line-height:1; transform:translateY(8px); }
+      #phase-timer { color:var(--hud-text); font-size:20px; font-weight:400; line-height:1; font-variant-numeric:tabular-nums; transform:translateY(20px); }
+      #phase-timer.infinite { font-size:29px; line-height:.7; }
+      #dev-status { position:absolute; top:164px; left:50%; transform:translateX(-50%); padding:7px 14px; color:#d4b8ff; background:rgba(21,16,27,.94); border:1px solid #795ca0; font:700 9px "Heebo",sans-serif; }
+
+      #event-panel { position:absolute; top:285px; left:52px; width:268px; height:311px; transform:scale(1.3); transform-origin:top left; }
+      .feed-title { display:none; }
+      #log { position:relative; width:268px; min-height:311px; display:flex; flex-direction:column; gap:7px; }
+      .feed-line { width:268px; min-height:46px; flex:none; display:grid; grid-template-columns:26px 1fr; gap:9px; align-items:center; padding:8px 13px; color:var(--hud-text); background:transparent url("/hud/notification-frame.webp") center/100% 100% no-repeat; font:400 10px/1.25 "Goldman",sans-serif; text-transform:none; will-change:opacity,transform; }
+      .feed-line.down { color:var(--hud-red); }
+      .feed-icon { width:26px; height:26px; display:grid; place-items:center; align-self:center; justify-self:center; overflow:hidden; border-radius:50%; color:transparent; background-position:50% 50%; background-size:auto 22px; background-repeat:no-repeat; }
+      .feed-line.down .feed-icon,.feed-line.info .feed-icon { background-image:url("/hud/notification-info-icon.webp"); }
+      .feed-line.loot .feed-icon { background-image:url("/materials/reinforcement-crystal.webp"); }.feed-line.combat .feed-icon { background-image:url("/hud/energy-icon.webp"); }
+      .feed-icon.custom { border-radius:0; background-image:none!important; }
+      .feed-icon.custom > * { grid-area:1/1; margin:auto; }
+      .feed-icon.custom .tool-item-art,.feed-icon.custom .tool-svg { width:22px; height:22px; display:block; object-fit:contain; object-position:50% 50%; }
+      .feed-icon.custom .building-art-placeholder { width:22px; height:22px; font-size:5px; }
+      .feed-icon.custom .building-art-placeholder i { transform:scale(.65); transform-origin:top left; }
+      .feed-line.feed-enter { animation:feedEnter .3s ease-out both; }
+      .feed-line.feed-shift { animation:feedShift .3s ease-out both; }
+      .feed-line.feed-out { position:absolute; z-index:0; margin:0; animation:feedOut .3s ease-in both; pointer-events:none; }
+      @keyframes feedEnter { from { opacity:0; transform:translate(-18px,-6px); } }
+      @keyframes feedShift { from { transform:translateY(-53px); } }
+      @keyframes feedOut { to { opacity:0; transform:translate(-13px,5px) scale(.97); } }
+
+      #bars { position:absolute; left:20px; bottom:20px; width:400px; height:222px; display:flex; flex-direction:column; gap:2px; padding:25px 51px 25px 81px; border:0; border-radius:0; background:transparent url("/hud/vitals-frame.webp") center/100% 100% no-repeat; transform:scale(.92); transform-origin:bottom left; }
+      .meter { position:relative; width:268px; height:55px; flex:none; }
+      .meter-icon { position:absolute; left:-51px; top:7px; width:40px; height:40px; background-position:center; background-size:34px 34px; background-repeat:no-repeat; }
+      .meter.health .meter-icon { background-image:url("/hud/health-icon.webp"); }.meter.oxygen .meter-icon { background-image:url("/hud/oxygen-icon.webp"); }.meter.energy .meter-icon { background-image:url("/hud/energy-icon.webp"); }
+      .meter-label { width:268px; height:27px; display:flex; justify-content:space-between; align-items:center; gap:10px; padding:0 5px; color:var(--hud-text); font-size:16px; font-weight:400; }
+      .meter-label b { color:var(--hud-text); font:400 16px "Heebo",sans-serif; font-variant-numeric:tabular-nums; }
+      .bar { position:relative; width:268px; height:28px; overflow:hidden; border-radius:14px; background:transparent url("/hud/meter-track.webp") center/100% 100% no-repeat; }
+      .bar .fill { --bar-row:0; position:absolute; left:9px; right:9px; top:8px; height:12px; overflow:hidden; background-repeat:no-repeat; background-size:250px auto; background-position:0 calc(var(--bar-row) * -13.911px); transition:opacity .12s linear; }
+      #hp-fill { background-image:url("/bars/health-bar.png"); } #o2-fill { background-image:url("/bars/oxygen-bar.png"); } #st-fill { background-image:url("/bars/energy-bar.png"); }
+
+      #minimap-shell { position:absolute; top:20px; right:20px; width:300px; height:338px; display:flex; flex-direction:column; justify-content:center; padding:11px 0; background:transparent url("/hud/minimap-frame.webp") center/100% 100% no-repeat; transform-origin:top right; transition:transform .24s ease; }
+      #minimap-shell.expanded { z-index:7; transform:scale(1.28); }
+      .map-head { width:300px; height:24px; position:relative; display:flex; justify-content:center; align-items:center; color:#5c6c5c; font-size:16px; font-weight:400; }
+      #map-coords { position:absolute; right:24px; bottom:-20px; z-index:4; color:#93a57a; font:400 8px "Heebo",sans-serif; }
+      .map-content { width:300px; height:263px; display:flex; gap:4px; justify-content:center; align-items:center; }
+      .map-area { width:254px; height:219px; display:flex; justify-content:flex-end; align-items:center; }
+      .map-window { position:relative; overflow:hidden; width:229px; height:219px; border:0; background:#071006; }
+      .map-window::after { content:""; position:absolute; z-index:2; inset:0; pointer-events:none; background:repeating-linear-gradient(0deg,rgba(144,187,91,.035) 0,rgba(144,187,91,.035) 1px,transparent 1px,transparent 4px); }
+      #minimap { display:block; width:100%; height:100%; image-rendering:pixelated; filter:saturate(.7) sepia(.16) hue-rotate(30deg); }
+      .map-north { position:absolute; top:4px; left:50%; z-index:3; transform:translateX(-50%); color:#a8df4a; font-size:8px; }
+      .map-altitude { width:42px; height:263px; display:flex; flex-direction:column; align-items:center; padding:15px 9px; transform:translateX(-2px); }
+      .altitude-rail { position:relative; width:24px; height:169px; margin-top:17px; background-image:url("/hud/altitude-rail.webp"); background-size:1400% 100%; background-position:var(--depth-x,0%) center; background-repeat:no-repeat; }
+      .altitude-light { width:24px; height:23px; margin-top:10px; background:url("/hud/altitude-light.webp") center/100% 100% no-repeat; animation:altitudePulse 1.6s ease-in-out infinite; }
+      #map-depth { margin-top:3px; color:#8a9c78; font:400 7px "Heebo",sans-serif; writing-mode:vertical-rl; }
+      @keyframes altitudePulse { 50% { filter:brightness(1.7); } }
+      .map-hint { width:300px; height:24px; text-align:center; color:var(--hud-text); font:400 16px/1.48 "Heebo",sans-serif; }
+
+      #slots { position:absolute; right:20px; bottom:20px; width:450px; height:518px; padding:0; pointer-events:auto; filter:drop-shadow(0 10px 20px rgba(0,0,0,.35)); transform:scale(.85); transform-origin:bottom right; }
+      .tool-dock-head { position:absolute; z-index:5; top:14px; left:7px; width:436px; height:24px; display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:8px; padding:0 29px; }
+      .tool-dock-head span:first-child,#tool-position { color:#bdb7a5; font:400 18px/1 "Asap Condensed",sans-serif; }
+      .tool-dock-head span:first-child { overflow:hidden; text-align:left; text-overflow:ellipsis; white-space:nowrap; } #tool-position { text-align:right; white-space:nowrap; }
+      #tool-mode-tabs { height:23px; display:flex; align-items:stretch; gap:2px; padding:2px; background:#0a0b0b; border:1px solid #49443d; clip-path:polygon(4px 0,calc(100% - 4px) 0,100% 4px,100% calc(100% - 4px),calc(100% - 4px) 100%,4px 100%,0 calc(100% - 4px),0 4px); }
+      .tool-mode-tab { min-width:65px; padding:0 7px; cursor:pointer; color:#77736b; background:#161717; border:0; font:600 11px/1 "Asap Condensed",sans-serif; text-transform:uppercase; transition:color .16s,background .16s,filter .16s; }
+      .tool-mode-tab:hover:not(:disabled) { color:#d2cabb; filter:brightness(1.25); }
+      .tool-mode-tab.active { color:#f19e74; background:#552018; box-shadow:inset 0 0 0 1px #963627; }
+      .tool-mode-tab:disabled { cursor:default; color:#3e3d39; background:#101111; }
+      .carousel-row { position:relative; width:450px; height:450px; background:transparent url("/hud/tool-carousel-frame.webp") center/100% 100% no-repeat; }
+      .carousel-arrow { display:none; }
+      #tool-card { position:absolute; top:36px; left:15px; width:420px; height:398px; overflow:hidden; color:var(--tool-accent); }
+      .tool-hero { position:relative; width:420px; height:240px; display:grid; grid-template-columns:210px 210px; }
+      .tool-key { display:none; }
+      .tool-count { position:absolute; z-index:4; left:168px; bottom:12px; min-width:36px; padding:3px 7px; color:#f19e74; background:#0a0c0c; border:1px solid #4a4f49; font:400 13px "Asap Condensed",sans-serif; text-align:center; }
+      .tool-art { position:relative; width:210px; height:240px; padding:0 20px; color:var(--tool-accent); background:url("/hud/tool-hero-panel.webp") center/100% 100% no-repeat; }
+      .tool-item-art { display:block; object-fit:contain; object-position:50% 50%; justify-self:center; align-self:center; }
+      .tool-art > .tool-svg,.tool-art > .tool-item-art,.tool-art > .export-bomb-art { position:absolute; top:50%; left:50%; margin:0; transform:translate(-50%,-50%); }
+      .tool-art .tool-svg { width:190px; height:180px; overflow:visible; }.tool-art .tool-item-art { width:190px; height:190px; }.export-bomb-art { width:190px; height:230px; padding:18px; object-fit:contain; object-position:center; }
+      .tool-art .building-art-placeholder { position:absolute; top:50%; left:50%; width:104px; height:104px; transform:translate(-50%,-50%); font-size:16px; }
+      .tool-copy { width:210px; height:240px; display:flex; flex-direction:column; justify-content:center; padding:21px 25px; background:url("/hud/tool-hero-panel.webp") center/100% 100% no-repeat; font-family:"Asap Condensed",sans-serif; }
+      .tool-copy > span { margin-bottom:6px; color:#bdb7a5; font-size:16px; font-weight:400; line-height:1.35; }
+      .tool-copy h2 { color:#c13220; font-size:34px; font-weight:700; line-height:1.02; }.tool-copy h2 em { color:#f19e74; font-size:14px; font-style:normal; }
+      .tool-copy p { margin-top:9px; padding-top:9px; color:#bdb7a5; border-top:1px solid rgba(193,50,32,.62); font-size:15px; font-weight:500; line-height:1.35; text-transform:none; }
+      .tool-data { width:420px; height:158px; display:grid; grid-template-columns:210px 210px; }
+      .tool-data-title { display:none; }
+      .tool-stats,.tool-upgrades { position:relative; width:210px; height:158px; background:url("/hud/tool-data-panel.webp") center/100% 100% no-repeat; }
+      .tool-stats { display:flex; flex-direction:column; gap:3px; padding:54px 25px 14px; }
+      .tool-stats::before,.tool-upgrades::before { content:"STATS"; position:absolute; top:22px; left:25px; right:25px; height:24px; color:#c13220; border-bottom:1px solid rgba(193,50,32,.62); font:400 16px/1 "Asap Condensed",sans-serif; }
+      .tool-upgrades::before { content:attr(data-label); text-align:left; }
+      .tool-stat { width:160px; height:18px; display:grid; grid-template-columns:16px 56px minmax(0,1fr); align-items:center; column-gap:6px; font:400 16px/1 "Asap Condensed",sans-serif; }
+      .tool-stat-icon { width:16px; height:16px; flex:none; background:center/100% 100% no-repeat; }.tool-stat:nth-child(1) .tool-stat-icon { background-image:url("/hud/stat-fuse.webp"); }.tool-stat:nth-child(2) .tool-stat-icon { background-image:url("/hud/stat-range.webp"); }.tool-stat:nth-child(3) .tool-stat-icon { background-image:url("/hud/stat-width.webp"); }.tool-stat:nth-child(4) .tool-stat-icon { background-image:url("/hud/stat-capacity.webp"); }
+      .tool-stat b { color:#c13220; font:inherit; text-align:left; }.tool-stat span { color:#a5a595; font:inherit; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .tool-upgrades { overflow:hidden; }
+      .tool-amount { position:absolute; top:48px; right:25px; bottom:14px; left:25px; display:grid; place-items:center; color:#bdb7a5; }
+      .tool-amount strong { display:block; color:inherit; font:700 64px/.9 "Goldman",sans-serif; letter-spacing:-2px; text-align:center; }
+      .tool-amount.infinity strong { font-size:88px; font-weight:500; line-height:.72; letter-spacing:0; transform:translateY(-3px); }
+      #tool-card.needs-craft::after { content:""; position:absolute; inset:0; z-index:5; pointer-events:none; background:rgba(3,5,5,.72); }
+      .tool-craft-overlay { position:absolute; z-index:6; top:50%; left:50%; width:329px; height:114px; display:flex; align-items:center; justify-content:center; gap:12px; padding:4px 20px 9px; cursor:pointer; color:#f74640; background:transparent url("/hud/red-button-frame.webp") center/100% 100% no-repeat; border:0; text-align:center; text-transform:uppercase; transform:translate(-50%,-50%); transition:filter .15s,transform .15s; }
+      .tool-craft-overlay strong { color:#f74640; font:600 31px/1 "Asap Condensed",sans-serif; }
+      .tool-craft-cost { height:31px; display:flex; align-items:center; justify-content:center; gap:6px; color:#f74640; font:400 17px/1 "Goldman",sans-serif; }
+      .tool-craft-cost i { width:14px; height:24px; flex:none; background:url("/materials/common-gem.webp") center/100% 100% no-repeat; }
+      .tool-craft-cost b { color:inherit; font:400 31px/1 "Goldman",sans-serif; }
+      .tool-craft-overlay:hover { filter:brightness(1.22); transform:translate(-50%,-52%); }
+      .tool-craft-overlay:active { filter:brightness(.92); transform:translate(-50%,-48%); }
+      .swipe-next .tool-count,.swipe-prev .tool-count,
+      .swipe-next .tool-art > *,.swipe-prev .tool-art > *,
+      .swipe-next .tool-copy > *,.swipe-prev .tool-copy > *,
+      .swipe-next .tool-stats > *,.swipe-prev .tool-stats > *,
+      .swipe-next .tool-stats::before,.swipe-prev .tool-stats::before,
+      .swipe-next .tool-upgrades::before,.swipe-prev .tool-upgrades::before { animation:toolContentFade .3s ease-out; }
+      @keyframes toolContentFade { from { opacity:.18; } }
+      .tool-preview { display:none; }
+      #tool-dots { position:absolute; top:458px; left:0; width:450px; min-height:60px; display:flex; flex-wrap:wrap; justify-content:center; align-content:flex-start; gap:5px; overflow:visible; }
+      #tool-dots button { width:68px; height:60px; flex:none; display:grid; place-items:center; padding:0; cursor:pointer; color:#686662; background:transparent url("/hud/pagination-inactive.webp") center/100% 100% no-repeat; font:400 24px/1.48 "Heebo",sans-serif; text-align:center; white-space:normal; transition:filter .15s; }
+      #tool-dots button:hover { filter:brightness(1.3); } #tool-dots button.active { color:#f19e74; background-image:url("/hud/pagination-active.webp"); }
+      #tool-dots button.pagination-nav { color:#f19e74; font-size:27px; }
+
+      #help { position:absolute; left:calc(50% + 8px); bottom:20px; width:497px; height:60px; transform:translateX(-50%); display:flex; gap:10px; }
+      .key-hint { width:62px; height:60px; flex:none; display:flex; flex-direction:column; gap:4px; justify-content:center; align-items:center; color:var(--hud-text); background:url("/hud/key-hint-frame.webp") center/100% 100% no-repeat; }
+      #help kbd { display:block; min-width:0; height:auto; padding:0; color:var(--hud-text); background:none; font:400 17px/1.2 "Heebo",sans-serif; text-align:center; }.key-hint:first-child kbd,.key-hint:nth-child(2) kbd { font-size:11px; }.key-hint:nth-child(4) kbd { font-size:13px; }
+      #help kbd.cycling-key { position:relative; width:52px; height:22px; }
+      .cycling-key span { position:absolute; inset:0; display:grid; place-items:center; will-change:opacity; }
+      .cycling-key span:first-child { animation:keyPrimary 12s ease-in-out infinite; }
+      .cycling-key span:last-child { animation:keySecondary 12s ease-in-out infinite; }
+      @keyframes keyPrimary { 0%,30%{opacity:1} 50%,80%{opacity:.12} 100%{opacity:1} }
+      @keyframes keySecondary { 0%,30%{opacity:.12} 50%,80%{opacity:1} 100%{opacity:.12} }
+      .key-hint > span { font:700 8px/1.21 "Goldman",sans-serif; }
+
+      /* ---------------------------------------------------- skill lab */
+      #skill-tree {
+        position:absolute; z-index:12; inset:0; overflow-x:hidden; overflow-y:auto; pointer-events:auto;
+        display:flex; flex-direction:column; align-items:center; gap:8px; padding:20px; color:#bdb7a5;
+        background-color:#050607;
+        background-image:radial-gradient(ellipse at 50% 8%,rgba(104,111,112,.09),transparent 54%),linear-gradient(180deg,rgba(0,0,0,.14),rgba(0,0,0,.5)),var(--armory-ground,none);
+        background-position:center,center,0 0;
+        background-size:cover,cover,256px 256px;
+        background-repeat:no-repeat,no-repeat,repeat;
+        border:0; border-radius:0; box-shadow:none; text-transform:none;
+      }
+      #skill-tree > * { width:min(1200px,100%); flex:none; }
+      .tree-head { position:relative; z-index:4; height:73px; display:flex; align-items:center; justify-content:space-between; margin:0; padding:0; background:none; border:0; }
+      .tree-title { min-width:0; display:flex; align-items:center; gap:10px; }
+      .tree-emblem { width:73px; height:73px; flex:none; overflow:hidden; color:transparent; background:url("/upgrade/lab-emblem.webp") center/100% 100% no-repeat; border:0; border-radius:0; font-size:0; box-shadow:none; }
+      .tree-title .eyebrow { display:none; }
+      .tree-title h2 { color:#d62813; font:400 37px/1 "Goldman",sans-serif; letter-spacing:0; text-transform:uppercase; }
+      .tree-title p { margin-top:2px; color:#bdb7a5; font:500 15px/1.48 "Asap Condensed",sans-serif; }
+      #skill-close { width:138px; height:56px; flex:none; padding:0 8px; cursor:pointer; color:#bdb7a5; background:url("/upgrade/close-button.webp") center/100% 100% no-repeat; border:0; border-radius:0; font:400 19px/1 "Asap Condensed",sans-serif; text-transform:uppercase; transition:filter .15s; }
+      #skill-close:hover { filter:brightness(1.3); }
+      .tree-dashboard { height:98px; display:grid; grid-template-columns:minmax(420px,1fr) 684px; gap:10px; align-items:center; margin:0; padding:13px 30px 13px 20px; background:url("/upgrade/dashboard-frame.webp") center/100% 100% no-repeat; }
+      #tree-progress { height:56px; display:flex; align-items:center; gap:10px; padding:0; background:none; border:0; border-radius:0; }
+      .progress-count { width:56px; height:56px; flex:none; display:grid; place-items:center; background:url("/upgrade/progress-frame.webp") center/100% 100% no-repeat; }
+      #tree-progress .progress-count strong { color:#d62813; font:400 29px/1 "Goldman",sans-serif; }
+      .progress-copy { min-width:0; display:flex; flex-direction:column; justify-content:center; }
+      #tree-progress .progress-copy b { color:#bdb7a5; font:400 21px/1 "Asap Condensed",sans-serif; }
+      #tree-progress .progress-copy span { margin-top:2px; color:#a5a595; font:400 13px/1.35 "Asap Condensed",sans-serif; }
+      #tree-materials { width:684px; height:38px; display:grid; grid-template-columns:repeat(9,minmax(0,1fr)); grid-template-rows:38px; align-items:center; justify-content:end; gap:4px; }
+      #tree-materials .tree-resource { min-width:0; height:38px; display:flex; align-items:center; justify-content:center; gap:4px; padding:0 7px; color:#f74640; background:url("/upgrade/material-counter.png") center/100% 100% no-repeat; }
+      #tree-materials .tree-resource b { color:#f74640; font:400 14px/1 "Goldman",sans-serif; }
+      .tree-gem { width:13px; height:21px; flex:none; display:block; background:center/100% 100% no-repeat; }
+      .tree-gem.common { background-image:url("/materials/common-gem.webp"); }.tree-gem.gold { background-image:url("/materials/gold.webp"); }
+      .tree-gem.copper { background-image:url("/materials/copper.webp"); }.tree-gem.platinum { background-image:url("/materials/platinum.webp"); }
+      .tree-gem.crystal { background-image:url("/materials/reinforcement-crystal.webp"); }.tree-gem.fossils { background-image:url("/materials/fossil.webp"); }
+      .tree-gem.iron { background-image:url("/materials/iron.webp"); }.tree-gem.rubble { background-image:url("/materials/rubble.webp"); }
+      .tree-gem.coal { background:linear-gradient(135deg,transparent 17%,#282b2d 18% 76%,transparent 77%) center/13px 18px no-repeat; filter:drop-shadow(1px 1px 0 #050606); }
+      .tree-gem.power { width:13px; height:19px; background:none; clip-path:polygon(54% 0,18% 54%,47% 54%,34% 100%,85% 39%,55% 39%); background-color:#e6b94c; filter:drop-shadow(0 0 2px rgba(230,185,76,.45)); }
+      .tree-section { height:31px; display:flex; align-items:center; justify-content:flex-start; margin:0; padding:0 14px; color:#bdb7a5; font:400 21px/1.35 "Asap Condensed",sans-serif; letter-spacing:0; text-transform:uppercase; }
+      .tree-section::after { display:none; }
+      #research-scroll { width:100%; max-width:none; align-self:stretch; overflow-x:auto; overflow-y:hidden; padding:0 0 12px; scrollbar-width:thin; scrollbar-color:#68291f #0b0808; }
+      #research-scroll::-webkit-scrollbar { height:9px; }
+      #research-scroll::-webkit-scrollbar-track { background:#0b0808; }
+      #research-scroll::-webkit-scrollbar-thumb { background:#68291f; border:2px solid #0b0808; }
+      #research-rail { width:max(100%,2920px); }
+      #research-group-heads { width:100%; display:grid; grid-template-columns:3fr 4fr 4fr 6fr; gap:8px; }
+      #research-group-heads .tree-section { width:auto; padding-left:8px; }
+      #research-grid { width:100%; display:grid; grid-template-columns:3fr 4fr 4fr 6fr; gap:8px; align-items:start; }
+      #skill-nodes { width:auto; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; align-items:start; }
+      .engineering-branch,.weapon-tech-branch {
+        position:relative;
+        isolation:isolate;
+        min-width:0;
+        border:0;
+      }
+      .modular-branch-frame { position:absolute; z-index:0; inset:0; display:grid; grid-template-rows:auto minmax(0,1fr) auto; pointer-events:none; }
+      .modular-branch-frame i { display:block; width:100%; }
+      .modular-branch-frame .frame-top { aspect-ratio:682/177; background:url("/upgrade/branch-frame-top.png") center/100% 100% no-repeat; }
+      .modular-branch-frame .frame-center { min-height:0; overflow:hidden; background:url("/upgrade/branch-frame-center.png") center top/100% auto repeat-y; }
+      .modular-branch-frame .frame-bottom { aspect-ratio:682/177; background:url("/upgrade/branch-frame-bottom.png") center/100% 100% no-repeat; }
+      .engineering-branch > :not(.modular-branch-frame),.weapon-tech-branch > :not(.modular-branch-frame) { position:relative; z-index:1; }
+      #skill-tree.armory-opening .modular-branch-frame { align-content:start; animation:armoryBranchGrow .7s cubic-bezier(.22,.72,.2,1) both; animation-delay:calc(var(--branch-order,0) * 45ms); }
+      #skill-tree.armory-opening .engineering-step,#skill-tree.armory-opening .weapon-tech-step { will-change:opacity,transform; animation:armoryCardDrop .42s cubic-bezier(.2,.78,.2,1) both; animation-delay:calc(120ms + var(--card-order,0) * 38ms); }
+      @keyframes armoryBranchGrow {
+        from { grid-template-rows:auto minmax(0,0fr) auto; }
+        to { grid-template-rows:auto minmax(0,1fr) auto; }
+      }
+      @keyframes armoryCardDrop {
+        0% { opacity:0; transform:translateY(-28px) scale(.985); }
+        76% { opacity:1; transform:translateY(2px) scale(1); }
+        100% { opacity:1; transform:translateY(0) scale(1); }
+      }
+      .engineering-branch { padding:8px 10px 10px; }
+      .engineering-branch-head { height:78px; padding:4px 7px 8px; border-bottom:1px solid rgba(193,50,32,.5); }
+      .engineering-branch-head h4 { min-height:30px; color:#d62813; font:400 15px/1 "Asap Condensed",sans-serif; text-transform:uppercase; }
+      .engineering-branch-head p { margin-top:3px; color:#8b867b; font:400 10px/1.2 "Asap Condensed",sans-serif; }
+      .engineering-track { display:flex; flex-direction:column; gap:8px; padding-top:8px; }
+      .engineering-step { position:relative; min-width:0; }
+      .engineering-step:not(:first-child)::before { content:""; position:absolute; z-index:2; top:-8px; left:50%; width:2px; height:8px; transform:translateX(-50%); background:#67281f; box-shadow:0 0 7px rgba(214,40,19,.25); }
+      .skill-node { position:relative; width:100%; min-width:0; height:175px; overflow:hidden; display:grid; grid-template-rows:48px minmax(0,1fr) 4px 31px; gap:6px; padding:12px; background:url("/upgrade/ruin-arsenal-card.webp") center/100% 100% no-repeat; border:0; border-radius:0; box-shadow:0 5px 7px -3px rgba(0,0,0,.72); transition:filter .16s,transform .16s; }
+      .skill-node.no-progression { grid-template-rows:48px minmax(0,1fr) 31px; }
+      .skill-node:hover { transform:translateY(-2px); filter:brightness(1.15); }
+      .skill-node.owned { filter:sepia(.12) saturate(1.15); }.skill-node.locked,.skill-node.unaffordable { filter:grayscale(.95) brightness(.46); opacity:.74; }
+      .skill-node.owned button:disabled,.weapon-tech-card.owned button:disabled { color:#ffd4cb; background-image:url("/upgrade/button-active.webp"); filter:brightness(1.08); }
+      .skill-identity { min-width:0; display:grid; grid-template-columns:44px minmax(0,1fr); align-items:center; gap:7px; }
+      .node-icon { width:44px; height:44px; flex:none; display:grid; place-items:center; color:#8f726b; background:url("/upgrade/icon-inactive.png") center/100% 100% no-repeat; border:0; border-radius:0; box-shadow:none; transition:color .16s,filter .16s; }
+      .skill-node.craftable .node-icon { color:#f74640; background-image:url("/upgrade/icon-active.png"); filter:drop-shadow(0 0 5px rgba(214,40,19,.22)); }
+      .node-icon svg { width:27px; height:27px; display:block; overflow:visible; }
+      .node-icon .tool-item-art { width:34px; height:34px; display:block; object-fit:contain; object-position:center; }
+      .node-branch { display:none; }
+      .skill-title { min-width:0; }
+      .skill-title span { display:block; margin-bottom:4px; color:#8b776d; font:400 7px/1 "Goldman",sans-serif; letter-spacing:.45px; text-transform:uppercase; }
+      .skill-node h3 { height:34px; margin:0; overflow:hidden; color:#bdb7a5; font:400 16px/1.02 "Asap Condensed",sans-serif; white-space:normal; }
+      .level-pips { height:4px; display:flex; gap:3px; margin:0; }
+      .level-pips i { min-width:5px; max-width:22px; height:3px; flex:1; background:#3b3732; border-radius:0; }
+      .level-pips i.filled { background:#d62813; box-shadow:0 0 6px rgba(214,40,19,.55); }
+      .skill-node p { min-width:0; color:#c1baaa; font:400 12.5px/1.18 "Asap Condensed",sans-serif; opacity:0; transform:translateY(2px); transition:opacity .18s ease,transform .18s ease; }
+      .skill-node:hover p,.skill-node:focus-within p { opacity:1; transform:translateY(0); }
+      .skill-node p small { display:block; margin-top:3px; color:#918b80; font:400 10.5px/1.12 "Asap Condensed",sans-serif; text-transform:none; }
+      .skill-action { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) 55px; gap:4px; align-items:center; }
+      .skill-node .cost { height:29px; display:flex; align-items:center; justify-content:center; gap:3px; padding:0 3px; color:#f74640; background:url("/upgrade/material-counter.png") center/100% 100% no-repeat; }
+      .upgrade-cost { display:flex; align-items:center; gap:2px; padding:0 1px; }.upgrade-cost .tree-gem { width:7px; height:11px; }.upgrade-cost b { color:#f74640; font:400 9px/1 "Goldman",sans-serif; }
+      .skill-node button { width:100%; height:30px; display:grid; place-items:center; padding:0 4px 2px; cursor:pointer; color:#bdb7a5; background:url("/upgrade/button-active.webp") center/100% 100% no-repeat; border:0; border-radius:0; font:400 11px/1 "Asap Condensed",sans-serif; text-transform:uppercase; letter-spacing:0; }
+      .skill-node button:hover:not(:disabled) { filter:brightness(1.3); }.skill-node button:disabled { cursor:default; color:rgba(189,183,165,.5); background-image:url("/upgrade/button-disabled.webp"); border:0; }
+      #weapon-skill-nodes { width:auto; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; align-items:start; padding:0; }
+      #relic-skill-nodes { width:auto; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; align-items:start; padding:0; }
+      #tool-skill-nodes { width:auto; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; align-items:start; padding:0; }
+      #tool-skill-nodes .field-tech-branch:last-child { grid-column:span 2; }
+      #tool-skill-nodes .field-tech-branch:last-child .weapon-tech-track { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+      #tool-skill-nodes .field-tech-branch:last-child .weapon-tech-step::before { display:none; }
+      #tool-skill-nodes .field-tech-branch:last-child .weapon-tech-step:nth-child(n+3)::before { display:block; }
+      .weapon-tech-branch { padding:8px 10px 10px; }
+      .weapon-tech-branch-head { height:78px; padding:4px 7px 8px; border-bottom:1px solid rgba(193,50,32,.5); }
+      .weapon-tech-branch-head h4 { min-height:30px; color:#d62813; font:400 15px/1 "Asap Condensed",sans-serif; text-transform:uppercase; }
+      .weapon-tech-branch-head p { margin-top:3px; color:#8b867b; font:400 10px/1.2 "Asap Condensed",sans-serif; }
+      .weapon-tech-track { display:flex; flex-direction:column; gap:8px; padding-top:8px; }
+      .weapon-tech-step { position:relative; min-width:0; }
+      .weapon-tech-step:not(:first-child)::before { content:""; position:absolute; top:-8px; left:50%; width:2px; height:8px; transform:translateX(-50%); background:#67281f; box-shadow:0 0 7px rgba(214,40,19,.3); }
+      .weapon-tech-card { position:relative; min-width:0; height:175px; overflow:hidden; display:grid; grid-template-rows:48px minmax(0,1fr) 31px; gap:6px; padding:12px; background:url("/upgrade/item-card-v2.png") center/100% 100% no-repeat; box-shadow:0 5px 7px -3px rgba(0,0,0,.72); transition:filter .16s,transform .16s; }
+      .weapon-tech-card:hover { filter:brightness(1.13); transform:translateY(-1px); }
+      .weapon-tech-card.locked,.weapon-tech-card.unaffordable { filter:grayscale(.95) brightness(.46); opacity:.74; }.weapon-tech-card.owned { filter:sepia(.08) saturate(1.12); }
+      .weapon-tech-card.available { filter:drop-shadow(0 0 6px rgba(214,40,19,.16)); }
+      .weapon-tech-identity { min-width:0; display:grid; grid-template-columns:44px minmax(0,1fr); align-items:center; gap:7px; }
+      .weapon-tech-art { width:44px; height:44px; display:grid; place-items:center; padding:5px; background:url("/hud/tool-hero-panel.webp") center/100% 100% no-repeat; }
+      .weapon-tech-art .tool-item-art,.weapon-tech-art .tool-svg { width:34px; height:34px; object-fit:contain; object-position:center; }
+      .weapon-tech-art .starter-bomb-art { width:34px; height:34px; display:block; object-fit:contain; object-position:center; }
+      .weapon-tech-art .weapon-art-placeholder { width:32px; height:32px; font-size:6px; }
+      .weapon-tech-copy { min-width:0; }
+      .weapon-tech-copy > span { display:block; margin-bottom:4px; color:#8b776d; font:400 7px/1 "Goldman",sans-serif; letter-spacing:.45px; text-transform:uppercase; }
+      .weapon-tech-copy h4 { height:34px; overflow:hidden; color:#bdb7a5; font:400 16px/1.02 "Asap Condensed",sans-serif; white-space:normal; }
+      .weapon-tech-description { min-width:0; opacity:0; transform:translateY(2px); transition:opacity .18s ease,transform .18s ease; }
+      .weapon-tech-card:hover .weapon-tech-description,.weapon-tech-card:focus-within .weapon-tech-description { opacity:1; transform:translateY(0); }
+      .weapon-tech-description p { color:#c1baaa; font:400 12.5px/1.18 "Asap Condensed",sans-serif; }
+      .weapon-tech-description small { display:block; margin-top:3px; color:#918b80; font:400 10.5px/1.12 "Asap Condensed",sans-serif; }
+      .weapon-tech-action { grid-column:1/-1; display:grid; grid-template-columns:minmax(0,1fr) 55px; gap:4px; align-items:center; }
+      .relic-tech-card .weapon-tech-action { grid-template-columns:minmax(0,1fr); }
+      .relic-tech-card.has-ammo .weapon-tech-action { grid-template-columns:minmax(0,1fr) 55px; }
+      .weapon-tech-action button { width:100%; min-width:0; height:30px; display:grid; place-items:center; padding:0 4px 2px; cursor:pointer; color:#bdb7a5; background:url("/upgrade/button-active.webp") center/100% 100% no-repeat; border:0; border-radius:0; font:400 11px/1 "Asap Condensed",sans-serif; text-transform:uppercase; letter-spacing:0; }
+      .weapon-tech-action button:disabled { cursor:default; color:rgba(189,183,165,.48); background-image:url("/upgrade/button-disabled.webp"); }
+      .weapon-tech-cost { height:29px; display:flex; align-items:center; justify-content:center; gap:3px; padding:0 3px; color:#f74640; background:url("/upgrade/material-counter.png") center/100% 100% no-repeat; }
+      .weapon-tech-cost .tree-gem { width:7px; height:11px; }.weapon-tech-cost b { font:400 9px/1 "Goldman",sans-serif; }
+      .skill-node .cost > b,.weapon-tech-cost > b { width:12px; height:12px; display:grid; place-items:center; color:#f74640; font:400 12px/1 "Goldman",sans-serif; }
+      .weapon-tech-cost > b.infinite-ammo { width:auto; height:auto; font-size:19px; line-height:1; }
+      .weapon-art-placeholder { width:72px; height:76px; display:grid; place-items:center; color:#777368; background:rgba(6,7,7,.76); border:1px dashed #5e312d; font:400 8px/1.2 "Goldman",sans-serif; text-align:center; text-transform:uppercase; }
+      .building-art-placeholder { position:relative; width:34px; height:34px; display:grid; place-items:center; color:#141515; background:#e4e0d5; box-shadow:inset 0 0 0 2px #817f78,0 1px 0 #050606; font:700 7px/1 "Goldman",sans-serif; }
+      .building-art-placeholder::before,.building-art-placeholder::after { content:""; position:absolute; background:#5f615e; }
+      .building-art-placeholder::before { left:4px; right:4px; bottom:5px; height:3px; }
+      .building-art-placeholder::after { top:4px; right:5px; width:4px; height:8px; }
+      .building-art-placeholder i { position:absolute; left:5px; top:5px; width:9px; height:9px; border:2px solid #777a76; border-radius:50%; }
+      .building-art-placeholder b { position:relative; z-index:1; margin-top:10px; }
+
+      @media (max-width:650px), (max-height:620px) {
+        .menu-card { transform:scale(.82); }
+      }
+      @media (max-width:510px), (max-height:500px) {
+        .menu-card { transform:scale(.64); }
+      }
+      @media (max-width:1120px), (max-height:720px) {
+        .lobby-card { transform:scale(.82); }
+      }
+      @media (max-width:900px), (max-height:590px) {
+        .lobby-card { transform:scale(.64); }
+      }
+      @media (max-width:700px), (max-height:470px) {
+        .lobby-card { transform:scale(.5); }
+      }
+
+      @media (max-width:1390px), (max-height:870px) {
+        #pack { top:16px; left:16px; transform:scale(.88); transform-origin:top left; }
+        #event-panel { top:235px; left:48px; transform:scale(1.04); transform-origin:top left; }
+        #bars { left:16px; bottom:16px; transform:scale(.736); transform-origin:bottom left; }
+        #phase-banner { top:16px; transform:translateX(-50%) scale(.8); transform-origin:top center; }
+        #dev-status { top:138px; }
+        #minimap-shell { top:16px; right:16px; transform:scale(.8); transform-origin:top right; }
+        #minimap-shell.expanded { transform:scale(1.03); }
+        #slots { top:auto; right:16px; bottom:16px; transform:scale(.68); transform-origin:bottom right; }
+        #help { bottom:16px; transform:translateX(-50%) scale(.8); transform-origin:bottom center; }
+      }
+      @media (max-width:1490px) {
+        .skill-node { width:auto; }
+      }
+      @media (prefers-reduced-motion:reduce) {
+        #skill-tree.armory-opening .modular-branch-frame,#skill-tree.armory-opening .engineering-step,#skill-tree.armory-opening .weapon-tech-step { animation-duration:.01ms; animation-delay:0ms; }
+      }
+      @media (max-width:830px), (max-height:650px) {
+        #pack { transform:scale(.704); }
+        #event-panel { top:174px; transform:scale(.832); }
+        #bars { transform:scale(.5888); }
+        #phase-banner { transform:translateX(-50%) scale(.64); }
+        #minimap-shell { transform:scale(.64); }
+        #minimap-shell.expanded { transform:scale(.82); }
+        #slots { transform:scale(.544); }
+        #help { display:none; }
+        #skill-tree { padding:10px; }
+        .tree-title h2 { font-size:25px; }.tree-title p { max-width:430px; font-size:12px; }
+        .tree-emblem { width:58px; height:58px; }.tree-head { height:58px; }
+        #skill-close { width:112px; height:46px; font-size:15px; }
+        .tree-dashboard { height:auto; grid-template-columns:1fr; padding:22px 14px; background-size:cover; }
+        #tree-materials { width:100%; height:auto; grid-template-columns:repeat(3,1fr); grid-auto-rows:43px; }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game-canvas"></canvas>
+    <div id="vignette"></div>
+
+    <div id="hud">
+      <div id="hud-decals" aria-hidden="true">
+        <img class="hud-corner-decal top-left" src="/hud/decals-bg/top-left.png" alt="" />
+        <img class="hud-corner-decal top-right" src="/hud/decals-bg/top-right.png" alt="" />
+        <img class="hud-corner-decal bottom-left" src="/hud/decals-bg/bottom-left.png" alt="" />
+        <img class="hud-corner-decal bottom-right" src="/hud/decals-bg/bottom-right.png" alt="" />
+      </div>
+      <section id="pack" class="panel">
+        <div class="pack-head"><div><div class="inventory-heading">Inventory</div><div id="player-label">Player</div></div><button id="skill-toggle">Armory</button></div>
+        <div id="resources"></div><div id="pack-meta"></div>
+      </section>
+
+      <div id="phase-banner"><div id="phase-name">Descending</div><div id="phase-timer">∞</div></div>
+      <div id="dev-status" class="hidden"></div>
+      <section id="event-panel">
+        <div class="feed-title">Burrow feed</div><div id="log"></div>
+      </section>
+
+      <section id="bars" class="panel">
+        <div class="meter health"><i class="meter-icon"></i><div class="meter-label"><span>Health</span><b id="hp-value">100 / 100</b></div><div class="bar"><div class="fill" id="hp-fill"></div></div></div>
+        <div class="meter oxygen"><i class="meter-icon"></i><div class="meter-label"><span>Air supply</span><b id="o2-value">100%</b></div><div class="bar"><div class="fill" id="o2-fill"></div></div></div>
+        <div class="meter energy"><i class="meter-icon"></i><div class="meter-label"><span>Energy</span><b id="st-value">100%</b></div><div class="bar"><div class="fill" id="st-fill"></div></div></div>
+      </section>
+
+      <section id="minimap-shell">
+        <div class="map-head"><span>LOCAL SURVEY</span><span id="map-coords">0, 0</span></div>
+        <div class="map-content">
+          <div class="map-area"><div class="map-window"><span class="map-north">N</span><canvas id="minimap" width="128" height="128"></canvas></div></div>
+          <div class="map-altitude"><div class="altitude-rail"></div><div class="altitude-light"></div><span id="map-depth">DEPTH 0</span></div>
+        </div>
+        <div class="map-hint">HOLD TAB TO EXPAND</div>
+      </section>
+
+      <section id="slots">
+        <div class="tool-dock-head"><span id="tool-dock-label">Equipped</span><div id="tool-mode-tabs" role="tablist" aria-label="Loadout category"><button class="tool-mode-tab active" data-tool-mode="weapons" role="tab" aria-selected="true">Weapons</button><button class="tool-mode-tab" data-tool-mode="buildings" role="tab" aria-selected="false">Buildings</button></div><span id="tool-position">1 available</span></div>
+        <div class="carousel-row">
+          <button id="tool-prev" class="carousel-arrow" aria-label="Previous tool">‹</button>
+          <div id="tool-prev-preview" class="tool-preview"></div>
+          <article id="tool-card"></article>
+          <div id="tool-next-preview" class="tool-preview"></div>
+          <button id="tool-next" class="carousel-arrow" aria-label="Next tool">›</button>
+        </div>
+        <div id="tool-dots"></div>
+      </section>
+
+      <div id="help">
+        <div class="key-hint"><kbd class="cycling-key" aria-label="WASD or arrow keys"><span aria-hidden="true">WASD</span><span aria-hidden="true">↑↓←→</span></kbd><span>Move</span></div>
+        <div class="key-hint"><kbd class="cycling-key" aria-label="Left mouse button or Space"><span aria-hidden="true">LMB</span><span aria-hidden="true">SPACE</span></kbd><span>Use</span></div>
+        <div class="key-hint"><kbd>Q</kbd><span>Remote</span></div>
+        <div class="key-hint"><kbd>Wheel</kbd><span>Tools</span></div>
+        <div class="key-hint"><kbd>Tab</kbd><span>Map</span></div>
+        <div class="key-hint"><kbd>U</kbd><span>Armory</span></div>
+        <div class="key-hint"><kbd>E</kbd><span>Base</span></div>
+      </div>
+
+      <section id="skill-tree" class="hidden">
+        <div class="tree-head">
+          <div class="tree-title"><div class="tree-emblem"></div><div><h2>Armory</h2><p>Build weapons, powered outposts, and permanent engineering upgrades.</p></div></div>
+          <button id="skill-close">ESC · CLOSE</button>
+        </div>
+        <div class="tree-dashboard"><div id="tree-progress"></div><div id="tree-materials"></div></div>
+        <div id="research-scroll"><div id="research-rail">
+          <div id="research-group-heads"><h3 class="tree-section">Core engineering trees</h3><h3 class="tree-section">Weapon blueprint trees</h3><h3 class="tree-section">Relics</h3><h3 class="tree-section">Outpost & field systems</h3></div>
+          <div id="research-grid"><div id="skill-nodes"></div><div id="weapon-skill-nodes"></div><div id="relic-skill-nodes"></div><div id="tool-skill-nodes"></div></div>
+        </div></div>
+      </section>
+    </div>
+
+    <div id="menu" class="overlay">
+      <section class="menu-card">
+        <div class="menu-content">
+          <header class="menu-header"><div class="menu-spacer"></div><div class="menu-title-logo" aria-label="The Burrow"></div><div class="title-tag">Dig deep&nbsp;&nbsp; • &nbsp;&nbsp;Build clever&nbsp;&nbsp; • &nbsp;&nbsp;Blast last</div><p class="subtitle">An underground last-player-standing Bomberman. Carve a base, stack wild upgrades, raid guarded fossil ruins, and make sure everyone else goes down first.</p></header>
+          <div class="menu-actions"><button id="create-btn" class="screen-button dark"><span>Create a server</span></button><button id="join-btn" class="screen-button red"><span>Join game</span></button></div>
+          <div class="menu-footer"><label class="dev-toggle"><input id="dev-mode" type="checkbox" />Developer mode&nbsp; • &nbsp;Unlimited arsenal + Bot Camera</label><div class="map-size" role="group" aria-label="Map size"><span>Map</span><button type="button" data-size="1024">1K</button><button type="button" data-size="2048">2K</button><button type="button" data-size="4096" class="active">4K</button></div></div>
+        </div>
+        <div id="menu-status"></div>
+      </section>
+    </div>
+
+    <div id="lobby" class="overlay hidden">
+      <section class="lobby-card">
+        <div class="lobby-grid">
+          <section class="lobby-panel lobby-roster-panel">
+            <header class="lobby-panel-head"><div><span>Waiting room</span><h3>Expedition crew</h3></div><b id="lobby-count">0 / 8</b></header>
+            <div class="lobby-meta"><span id="lobby-connection">Connecting to match server…</span><button id="lobby-copy-btn" class="lobby-copy-button" type="button">Copy invite</button></div>
+            <div class="lobby-list" id="lobby-list"></div>
+            <p class="lobby-note">Open crew slots deploy as combat bots when the host launches.</p>
+            <div class="lobby-actions">
+              <button id="leave-lobby-btn" class="lobby-button dark" type="button">Leave</button>
+              <button id="start-btn" class="lobby-button red" type="button">Start match</button>
+              <span id="lobby-host-note">Waiting for host to launch…</span>
+            </div>
+          </section>
+          <section class="lobby-panel lobby-chat-panel">
+            <header class="lobby-panel-head"><div><span>Reserved channel</span><h3>Room comms</h3></div><b class="lobby-channel-light" aria-label="Channel online">●</b></header>
+            <div id="lobby-chat-log" class="lobby-chat-log" aria-live="polite"><div class="lobby-chat-empty">Encrypted room channel online<br>Transmit when ready</div></div>
+            <form id="lobby-chat-form" class="lobby-chat-form">
+              <label class="lobby-chat-field"><input id="lobby-chat-input" maxlength="160" autocomplete="off" placeholder="Message the expedition…" aria-label="Lobby chat message" /></label>
+              <button class="lobby-send" type="submit">Send</button>
+            </form>
+            <p class="lobby-chat-hint">Enter to transmit · 160 character maximum</p>
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <div id="end" class="overlay hidden">
+      <section class="end-card panel"><div id="end-title"></div><table id="end-table"></table><button id="again-btn" class="game-button">Return to camp</button></section>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

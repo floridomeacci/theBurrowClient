@@ -1,0 +1,67 @@
+{
+  // The Burrow — Cloudflare-only production architecture (spec §16).
+  // Deploy: pnpm --filter @burrow/edge deploy
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "burrow-edge",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Workers Static Assets: serves the built client (HTML/JS/atlases).
+  "assets": {
+    "directory": "../client/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+
+  "durable_objects": {
+    "bindings": [
+      { "name": "MATCHMAKER", "class_name": "Matchmaker" },
+      { "name": "MATCH", "class_name": "MatchDO" }
+    ]
+  },
+
+  // One container instance per active match (spec §16.1 / §30).
+  "containers": [
+    {
+      "class_name": "MatchDO",
+      "image": "../../services/match-server/Dockerfile",
+      "max_instances": 20,
+      "instance_type": "basic"
+    }
+  ],
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["Matchmaker", "MatchDO"]
+    }
+  ],
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "burrow-db",
+      "database_id": "REPLACE_WITH_D1_ID"
+    }
+  ],
+
+  "r2_buckets": [
+    {
+      "binding": "REPLAYS",
+      "bucket_name": "burrow-replays"
+    }
+  ],
+
+  "queues": {
+    "producers": [{ "binding": "RESULTS_QUEUE", "queue": "burrow-match-results" }],
+    "consumers": [{ "queue": "burrow-match-results", "max_batch_size": 25, "max_batch_timeout": 10 }]
+  },
+
+  "vars": {
+    "REGION": "weur"
+  }
+
+  // Secrets (set with `wrangler secret put`):
+  //   MATCH_TOKEN_SECRET — HMAC key for signed match tokens
+}
