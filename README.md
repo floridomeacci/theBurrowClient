@@ -4,7 +4,7 @@ The Burrow is an online last-player-standing game set in a procedurally generate
 
 The browser renderer, simulation, network protocol, matchmaking edge, and authoritative server are written in TypeScript without a third-party game engine.
 
-Play the private preview at [adabuild.xyz](https://adabuild.xyz).
+Play the private preview at [adabuild.xyz](https://adabuild.xyz). Pass: P@sw0rd!1234
 
 ## How the game is built
 
