@@ -371,6 +371,24 @@ describe("match", () => {
     expect(sim.zombies).toHaveLength(0);
   });
 
+  it("prioritizes a bomb press over stale movement input", () => {
+    const sim = new MatchSim(1001, fastBal, roster(2));
+    const player = sim.players[0];
+    for (let y = 96; y <= 104; y++) for (let x = 96; x <= 104; x++) sim.world.setRaw(x, y, MAT.EMPTY);
+    player.x = cellsToFp(100.5);
+    player.y = cellsToFp(100.5);
+    sim.step();
+
+    for (let seq = 1; seq <= 8; seq++) {
+      sim.queueInput(player.id, { seq, moveX: 1, moveY: 0, aim: 0, buttons: 0, slot: 1 });
+    }
+    sim.queueInput(player.id, { seq: 9, moveX: 0, moveY: 0, aim: 0, buttons: 1, slot: 1 });
+    sim.step();
+
+    expect(player.lastProcessedSeq).toBe(9);
+    expect([...sim.entities.values()].some((entity) => entity.kind === ENT.BOMB && entity.ownerId === player.id)).toBe(true);
+  });
+
   it("runs one continuous daylight phase and ends on its survival timer", () => {
     const sim = new MatchSim(5, fastBal, roster(8));
     sim.drainEvents(); // constructor emits the countdown phase

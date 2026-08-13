@@ -456,13 +456,21 @@ export class MatchSim {
   queueInput(playerId: number, frame: InputFrame): void {
     const p = this.players[playerId];
     if (!p) return;
-    // basic rate validation: drop absurd backlogs (anti input-flood)
-    if (p.pendingInputs.length > 10) p.pendingInputs.shift();
     if (frame.seq <= p.lastProcessedSeq) return;
     frame.moveX = Math.max(-1, Math.min(1, frame.moveX | 0));
     frame.moveY = Math.max(-1, Math.min(1, frame.moveY | 0));
     frame.aim &= 255;
     frame.slot = Math.max(1, Math.min(LAST_BUILDING_TOOL_SLOT, frame.slot | 0));
+    const previous = p.pendingInputs[p.pendingInputs.length - 1] ?? p.input;
+    const edgeButtons = BTN.PRIMARY | BTN.INTERACT | BTN.USE | BTN.PLACE | BTN.TRIGGER | BTN.HUNT;
+    if ((frame.buttons & ~previous.buttons & edgeButtons) !== 0) {
+      // An action should not sit behind stale movement after a frame or
+      // network stall. Its newest position/aim also supersedes that backlog.
+      p.pendingInputs.length = 0;
+    } else if (p.pendingInputs.length >= 3) {
+      // Bound ordinary input latency to roughly three simulation ticks.
+      p.pendingInputs.shift();
+    }
     p.pendingInputs.push(frame);
   }
 

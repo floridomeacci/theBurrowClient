@@ -18,7 +18,10 @@ export interface RemoteEntity {
   width: number;
   nameVisible: boolean;
   lastSeen: number;
+  predictedUntil?: number;
 }
+
+const PREDICTED_BOMB_KEY = "predicted:bomb";
 
 interface PendingInput {
   seq: number;
@@ -194,6 +197,15 @@ export class ClientState {
       }
     }
 
+    // Replace immediate local bomb feedback as soon as its authoritative
+    // counterpart appears in the same cell.
+    const predictedBomb = this.entities.get(PREDICTED_BOMB_KEY);
+    if (predictedBomb && m.entities.some((entity) =>
+      entity.kind === ENT.BOMB &&
+      Math.floor(entity.x / FP) === Math.floor(predictedBomb.toX / FP) &&
+      Math.floor(entity.y / FP) === Math.floor(predictedBomb.toY / FP)
+    )) this.entities.delete(PREDICTED_BOMB_KEY);
+
     // entity interpolation buffers
     const seen = new Set<string>();
     for (const e of m.entities) {
@@ -233,8 +245,35 @@ export class ClientState {
       }
     }
     for (const [key, e] of this.entities) {
-      if (!seen.has(key) && now - e.lastSeen > 250) this.entities.delete(key);
+      if (!seen.has(key) && (e.predictedUntil === undefined ? now - e.lastSeen > 250 : now >= e.predictedUntil)) {
+        this.entities.delete(key);
+      }
     }
+  }
+
+  /** Show immediate placement feedback while the authoritative input crosses
+   * the network. A rejected placement disappears automatically. */
+  predictBomb(variant: number, now: number): void {
+    if (!this.havePos) return;
+    const x = (Math.floor(this.predX / FP) + 0.5) * FP;
+    const y = (Math.floor(this.predY / FP) + 0.5) * FP;
+    this.entities.set(PREDICTED_BOMB_KEY, {
+      kind: ENT.BOMB,
+      id: -1,
+      fromX: x,
+      fromY: y,
+      toX: x,
+      toY: y,
+      fromAt: now,
+      toAt: now,
+      facing: 255,
+      flags: 0,
+      variant,
+      width: 0,
+      nameVisible: false,
+      lastSeen: now,
+      predictedUntil: now + 750
+    });
   }
 
   lerpNow(e: RemoteEntity, now: number, axis: "x" | "y"): number {

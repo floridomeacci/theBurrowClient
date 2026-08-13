@@ -1,6 +1,7 @@
 import { BALANCE } from "@burrow/config";
 import {
   BASE_TOOL_SLOT,
+  BTN,
   BUILDING_DEFS,
   ENT,
   FP,
@@ -36,7 +37,7 @@ const minimap = $<HTMLCanvasElement>("minimap");
 const net = new Net();
 const st = new ClientState();
 const renderer = new Renderer(canvas, minimap);
-const input = new InputState(canvas);
+const input = new InputState(canvas, () => sendImmediateInput());
 const audio = new AudioSys();
 
 let mode: "menu" | "lobby" | "game" | "end" = "menu";
@@ -1215,6 +1216,48 @@ function updateSkillTree(): void {
 
 /* ------------------------------------------------------------- main loop */
 
+function sendGameplayInput(predictMovement: boolean, showLocalFeedback = false): void {
+  const rect = canvas.getBoundingClientRect();
+  const aim = input.aim(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  lastAim = aim;
+  const frameInput = {
+    moveX: input.moveX(),
+    moveY: input.moveY(),
+    aim,
+    buttons: input.buttons(),
+    slot: input.slot
+  };
+  const suppressGameplay = devViewing || devFreeCamera;
+  if (suppressGameplay || !predictMovement) st.seq++;
+  else st.predictStep(frameInput.moveX, frameInput.moveY, frameInput.buttons);
+  net.sendInput({
+    seq: st.seq,
+    moveX: suppressGameplay ? 0 : frameInput.moveX,
+    moveY: suppressGameplay ? 0 : frameInput.moveY,
+    aim,
+    buttons: suppressGameplay ? 0 : frameInput.buttons,
+    slot: frameInput.slot,
+    ackTick: Math.floor(st.lastSnapshotTick)
+  });
+
+  if (
+    showLocalFeedback &&
+    !suppressGameplay &&
+    (frameInput.buttons & BTN.PRIMARY) !== 0 &&
+    [1, 4, 5, 6, 7, 8].includes(frameInput.slot)
+  ) {
+    const selected = latestToolPool.find((tool) => tool.slot === frameInput.slot);
+    if (selected?.blast) st.predictBomb(selected.blast.variant, performance.now());
+  }
+}
+
+function sendImmediateInput(): void {
+  if (mode !== "game" || !net.connected) return;
+  // Edge-triggered gameplay actions bypass the next fixed-tick deadline. They
+  // do not advance movement prediction because this is an extra network frame.
+  sendGameplayInput(false, true);
+}
+
 function frame(now: number): void {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - lastFrameAt) / 1000);
@@ -1239,32 +1282,7 @@ function frame(now: number): void {
   const sendInterval = 1000 / BALANCE.network.inputSendHz;
   while (now - lastInputSendAt >= sendInterval) {
     lastInputSendAt = lastInputSendAt === 0 ? now : lastInputSendAt + sendInterval;
-    const scale = renderer.screenScale();
-    const rect = canvas.getBoundingClientRect();
-    const selfScreenX = rect.left + (rect.width / 2);
-    const selfScreenY = rect.top + (rect.height / 2);
-    const aim = input.aim(selfScreenX, selfScreenY);
-    lastAim = aim;
-    const frameInput = {
-      moveX: input.moveX(),
-      moveY: input.moveY(),
-      aim,
-      buttons: input.buttons(),
-      slot: input.slot
-    };
-    const suppressGameplay = devViewing || devFreeCamera;
-    if (suppressGameplay) st.seq++;
-    else st.predictStep(frameInput.moveX, frameInput.moveY, frameInput.buttons);
-    net.sendInput({
-      seq: st.seq,
-      moveX: suppressGameplay ? 0 : frameInput.moveX,
-      moveY: suppressGameplay ? 0 : frameInput.moveY,
-      aim,
-      buttons: suppressGameplay ? 0 : frameInput.buttons,
-      slot: frameInput.slot,
-      ackTick: Math.floor(st.lastSnapshotTick)
-    });
-    void scale;
+    sendGameplayInput(true);
   }
 
   renderer.syncChunks(st);

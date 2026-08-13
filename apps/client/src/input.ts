@@ -12,12 +12,13 @@ export class InputState {
   private keyboardFacing: number | null = null;
   private primaryPulseFrames = 0;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, private readonly onAction?: () => void) {
     window.addEventListener("keydown", (e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.code === "Space" || e.code.startsWith("Arrow")) e.preventDefault();
       if (e.repeat) return;
       this.keys.add(e.code);
+      if (["Space", "KeyE", "KeyQ", "KeyR", "KeyV"].includes(e.code)) this.onAction?.();
       if (e.code.startsWith("Digit") || e.code.startsWith("Numpad")) {
         const prefixLength = e.code.startsWith("Digit") ? 5 : 6;
         const page = Number(e.code.slice(prefixLength));
@@ -40,7 +41,12 @@ export class InputState {
       this.mouseY = e.clientY;
     });
     canvas.addEventListener("mousedown", (e) => {
-      if (e.button === 0) this.mouseDown = true;
+      if (e.button === 0) {
+        this.mouseX = e.clientX;
+        this.mouseY = e.clientY;
+        this.mouseDown = true;
+        this.onAction?.();
+      }
     });
     window.addEventListener("mouseup", (e) => {
       if (e.button === 0) this.mouseDown = false;
@@ -67,6 +73,7 @@ export class InputState {
 
   pulsePrimary(): void {
     this.primaryPulseFrames = Math.max(this.primaryPulseFrames, 2);
+    this.onAction?.();
   }
 
   moveX(): number {
