@@ -29,6 +29,10 @@ pnpm exec wrangler queues create adabuild-match-results
 
 # 4. Token signing secret
 pnpm exec wrangler secret put MATCH_TOKEN_SECRET
+
+# 5. Private-preview access secrets
+cd ../..
+pnpm run site-password
 ```
 
 ## Deploy
@@ -44,6 +48,14 @@ The password itself is never stored. Its salted PBKDF2 digest lives outside the
 repository in the user's configuration directory. Use
 `./deploy.sh --set-password` to replace it. Cloudflare login and account
 permissions still control access to the actual infrastructure.
+
+The local deployment password above is separate from the production preview
+password. Production access is checked at the Worker, which stores only a slow
+password verifier and a session-signing key as encrypted Cloudflare secrets.
+Successful browser sessions use a 12-hour `HttpOnly`, `Secure`, `SameSite=Strict`
+cookie. Wrangler rate-limit bindings cap password attempts and broader platform
+traffic, while the Matchmaker Durable Object separately limits game-session
+issuance.
 
 ## Flow in production
 

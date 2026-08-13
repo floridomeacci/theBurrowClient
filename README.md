@@ -108,6 +108,7 @@ pnpm test       # all automated tests
 pnpm build      # production client bundle
 pnpm audit      # dependency advisory check
 pnpm run deploy # password-gated Cloudflare deployment
+pnpm run site-password # securely rotate the production preview password
 ```
 
 Run the scripted end-to-end smoke client against a local server:
@@ -142,6 +143,19 @@ Static Assets, Durable Objects, Containers, D1, R2, and Queues. Credentials and
 secret values are intentionally excluded from version control; the D1 binding
 identifier in Wrangler configuration is non-secret deployment metadata. See
 [docs/deploy.md](./docs/deploy.md) for the setup sequence.
+
+The production preview is password-protected at the Worker before static assets,
+APIs, or WebSockets are served. Password verification uses a salted PBKDF2 hash
+stored as a Cloudflare secret, and successful access creates a signed, HTTP-only,
+secure, same-site cookie that expires after 12 hours. Cloudflare rate-limit
+bindings protect the whole application and apply a stricter limit to login
+attempts; game-session issuance also has its own serialized limit.
+
+Rotate the production preview password with `pnpm run site-password`. The
+script reads and confirms it without terminal echo, derives the verifier in
+memory, and sends only that verifier to Cloudflare. It does not write the
+plaintext or verifier to the repository. It also rotates the cookie-signing key
+so any previously issued browser sessions are invalidated.
 
 The first `pnpm run deploy` run creates a deployment password. Only a salted,
 slow-derived digest is saved, outside the repository in the user's configuration

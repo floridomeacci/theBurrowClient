@@ -17,8 +17,22 @@
     "directory": "../client/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/ws*"]
+    "run_worker_first": ["/*"]
   },
+
+  // Broad abuse control plus a stricter limiter for password attempts.
+  "ratelimits": [
+    {
+      "name": "REQUEST_RATE_LIMITER",
+      "namespace_id": "824617301",
+      "simple": { "limit": 600, "period": 60 }
+    },
+    {
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "824617302",
+      "simple": { "limit": 5, "period": 60 }
+    }
+  ],
 
   "durable_objects": {
     "bindings": [
@@ -73,4 +87,6 @@
 
   // Secrets (set with `wrangler secret put`):
   //   MATCH_TOKEN_SECRET — HMAC key for signed match tokens
+  //   SITE_PASSWORD_HASH — PBKDF2-SHA256 verifier for private preview access
+  //   SITE_SESSION_SECRET — HMAC key for short-lived access cookies
 }
