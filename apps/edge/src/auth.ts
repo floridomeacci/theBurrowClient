@@ -54,7 +54,7 @@ async function derivePassword(password: string, salt: Uint8Array, iterations: nu
  * encrypted secret store, but must not be committed alongside the app. */
 export async function createSitePasswordHash(
   password: string,
-  iterations = 310_000,
+  iterations = 100_000,
   suppliedSalt?: Uint8Array
 ): Promise<string> {
   if (password.length < 12 || password.length > 256) throw new Error("site password length is invalid");

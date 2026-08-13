@@ -4,7 +4,8 @@ set -Eeuo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly MIN_PASSWORD_LENGTH=12
-readonly PASSWORD_ITERATIONS=310000
+# Cloudflare Workers Web Crypto currently caps PBKDF2 at 100,000 iterations.
+readonly PASSWORD_ITERATIONS=100000
 
 die() {
   printf 'site-password: %s\n' "$*" >&2

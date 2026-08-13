@@ -10,7 +10,8 @@ import {
 
 describe("site access authentication", () => {
   it("verifies only the configured password", async () => {
-    const hash = await createSitePasswordHash("correct-horse-battery", 100_000, new Uint8Array(16).fill(7));
+    const hash = await createSitePasswordHash("correct-horse-battery", undefined, new Uint8Array(16).fill(7));
+    expect(hash).toMatch(/^v1\$100000\$/);
     await expect(verifySitePassword("correct-horse-battery", hash)).resolves.toBe(true);
     await expect(verifySitePassword("incorrect-password", hash)).resolves.toBe(false);
     await expect(verifySitePassword("correct-horse-battery", "invalid")).resolves.toBe(false);
