@@ -107,7 +107,7 @@ pnpm typecheck  # strict TypeScript checks across every workspace
 pnpm test       # all automated tests
 pnpm build      # production client bundle
 pnpm audit      # dependency advisory check
-pnpm deploy     # password-gated Cloudflare deployment
+pnpm run deploy # password-gated Cloudflare deployment
 ```
 
 Run the scripted end-to-end smoke client against a local server:
@@ -142,7 +142,7 @@ Containers, D1, R2, and Queues. Deployment configuration contains placeholders
 only; account identifiers and secrets are intentionally excluded from version
 control. See [docs/deploy.md](./docs/deploy.md) for the setup sequence.
 
-The first `pnpm deploy` run creates a deployment password. Only a salted,
+The first `pnpm run deploy` run creates a deployment password. Only a salted,
 slow-derived digest is saved, outside the repository in the user's configuration
 directory. Later runs require that password and an explicit confirmation before
 Wrangler starts. Change it with `./deploy.sh --set-password` or verify it without

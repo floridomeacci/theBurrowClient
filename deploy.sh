@@ -42,8 +42,12 @@ require_command() {
 prompt_secret() {
   local prompt="$1"
   local value
+  [[ -t 0 ]] || die "an interactive terminal is required"
   printf '%s' "$prompt" >/dev/tty
-  IFS= read -r -s value </dev/tty
+  if ! IFS= read -r -s value </dev/tty; then
+    printf '\n' >/dev/tty
+    die "unable to read from the terminal"
+  fi
   printf '\n' >/dev/tty
   printf '%s' "$value"
 }
@@ -183,7 +187,7 @@ esac
 if [[ ! -f "$GUARD_FILE" ]]; then
   printf 'No deployment password exists yet. Configure one before deploying.\n'
   create_password
-  printf 'Password saved. Run ./deploy.sh again to deploy.\n'
+  printf 'Password saved. Run pnpm run deploy again to deploy.\n'
   exit 0
 fi
 

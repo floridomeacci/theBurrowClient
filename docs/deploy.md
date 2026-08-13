@@ -34,7 +34,7 @@ pnpm exec wrangler secret put MATCH_TOKEN_SECRET
 ## Deploy
 
 ```bash
-pnpm deploy
+pnpm run deploy
 # First run: choose a local deployment password (no deployment occurs).
 # Later runs: enter that password, confirm, then build and deploy the Worker,
 # Durable Objects, and Containers together.
