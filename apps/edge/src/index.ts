@@ -3,8 +3,8 @@
  * The Burrow — edge gateway (spec §16).
  *
  * Components in this Worker:
- *  - Gateway routing: static assets, /api/queue, /ws
- *  - Matchmaker Durable Object: regional queue -> match formation
+ *  - Gateway routing: static assets, /api/session, /ws
+ *  - Matchmaker Durable Object: session issuance and request throttling
  *  - MatchDO: one Durable Object per match, owning one Cloudflare Container
  *    running services/match-server (MODE=container)
  *  - Queue consumer: exactly-once match result persistence into D1
@@ -24,8 +24,8 @@ export interface Env {
 }
 
 const BUILD_VERSION = "0.1.0";
-const MATCH_SIZE = 8;
-const QUEUE_WAIT_MS = 15_000; // form a (partially bot) match after this wait
+const SESSION_RATE_WINDOW_MS = 60_000;
+const SESSION_RATE_LIMIT = 20;
 
 /* ------------------------------------------------------------ gateway */
 
@@ -33,8 +33,10 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === "/api/queue" && request.method === "POST") {
-      // regional queue; single region for MVP (spec §16.4)
+    if (url.pathname === "/api/session") {
+      if (request.method !== "POST") {
+        return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
+      }
       const id = env.MATCHMAKER.idFromName(env.REGION);
       return env.MATCHMAKER.get(id).fetch(request);
     }
@@ -51,6 +53,7 @@ export default {
       const id = env.MATCH.idFromName(payload.matchId);
       // Identity is verified before the request enters the isolated match route.
       const proxied = new URL(request.url);
+      proxied.searchParams.delete("token");
       proxied.searchParams.set("room", payload.matchId);
       proxied.searchParams.set("name", payload.name);
       return env.MATCH.get(id).fetch(new Request(proxied.toString(), request));
@@ -106,9 +109,9 @@ export interface MatchResultMessage {
 
 /* ------------------------------------------------------------ matchmaker DO */
 
-interface QueueEntry {
-  name: string;
-  enqueuedAt: number;
+interface RateBucket {
+  startedAt: number;
+  count: number;
 }
 
 export class Matchmaker implements DurableObject {
@@ -121,13 +124,17 @@ export class Matchmaker implements DurableObject {
   }
 
   async fetch(request: Request): Promise<Response> {
+    const requestUrl = new URL(request.url);
+    const origin = request.headers.get("origin");
+    if (origin && origin !== requestUrl.origin) return new Response("invalid origin", { status: 403 });
+
     const contentLength = Number(request.headers.get("content-length") ?? 0);
     if (contentLength > 1024) return new Response("request too large", { status: 413 });
     const raw = await request.text();
     if (raw.length > 1024) return new Response("request too large", { status: 413 });
-    let body: { name?: unknown } = {};
+    let body: { name?: unknown; room?: unknown } = {};
     try {
-      body = raw ? JSON.parse(raw) as { name?: unknown } : {};
+      body = raw ? JSON.parse(raw) as { name?: unknown; room?: unknown } : {};
     } catch {
       return new Response("invalid JSON", { status: 400 });
     }
@@ -136,39 +143,41 @@ export class Matchmaker implements DurableObject {
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 16) || "miner";
-
-    const queue = (await this.state.storage.get<QueueEntry[]>("queue")) ?? [];
-    queue.push({ name, enqueuedAt: Date.now() });
-
-    let matchId: string | null = null;
-    const oldest = queue[0]?.enqueuedAt ?? Date.now();
-    if (queue.length >= MATCH_SIZE || Date.now() - oldest > QUEUE_WAIT_MS) {
-      // form match: everyone currently queued (bots fill the rest server-side)
-      matchId = crypto.randomUUID();
-      const members = queue.splice(0, MATCH_SIZE);
-      await this.state.storage.put("queue", queue);
-      // pre-warm the container while lobby countdown runs (spec §16.3)
-      const id = this.env.MATCH.idFromName(matchId);
-      await this.env.MATCH.get(id).fetch(new Request(`https://match/prewarm?matchId=${matchId}`));
-      const tokens = await Promise.all(
-        members.map((m) =>
-          signMatchToken(
-            {
-              matchId: matchId!,
-              name: m.name,
-              build: BUILD_VERSION,
-              exp: Math.floor(Date.now() / 1000) + 120,
-              nonce: crypto.randomUUID().slice(0, 8)
-            },
-            this.env.MATCH_TOKEN_SECRET
-          )
-        )
-      );
-      return Response.json({ matchId, token: tokens[tokens.length - 1], queued: 0 });
+    const requestedRoom = String(body.room ?? "local").trim().toLowerCase();
+    if (!/^[a-z0-9_-]{1,32}$/.test(requestedRoom)) {
+      return new Response("invalid room", { status: 400 });
     }
 
-    await this.state.storage.put("queue", queue);
-    return Response.json({ matchId: null, queued: queue.length });
+    const address = request.headers.get("cf-connecting-ip") ?? "unknown";
+    const addressBytes = new TextEncoder().encode(address);
+    const addressHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", addressBytes)))
+      .slice(0, 16)
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    const rateKey = `session-rate:${addressHash}`;
+    const now = Date.now();
+    let bucket = await this.state.storage.get<RateBucket>(rateKey);
+    if (!bucket || now - bucket.startedAt >= SESSION_RATE_WINDOW_MS) bucket = { startedAt: now, count: 0 };
+    if (bucket.count >= SESSION_RATE_LIMIT) {
+      return new Response("rate limit exceeded", { status: 429, headers: { "retry-after": "60" } });
+    }
+    bucket.count++;
+    await this.state.storage.put(rateKey, bucket);
+
+    const token = await signMatchToken(
+      {
+        matchId: requestedRoom,
+        name,
+        build: BUILD_VERSION,
+        exp: Math.floor(now / 1000) + 300,
+        nonce: crypto.randomUUID().slice(0, 8)
+      },
+      this.env.MATCH_TOKEN_SECRET
+    );
+    return Response.json(
+      { matchId: requestedRoom, token },
+      { headers: { "cache-control": "no-store" } }
+    );
   }
 }
 

@@ -17,15 +17,15 @@ deployment entrypoint; the container image is built from
 cd apps/edge
 
 # 1. D1 database
-pnpm exec wrangler d1 create burrow-db
+pnpm exec wrangler d1 create adabuild-db --location weur
 #    → copy database_id into wrangler.jsonc (d1_databases[0].database_id)
 pnpm run db:migrate
 
 # 2. R2 bucket (replays / snapshots)
-pnpm exec wrangler r2 bucket create burrow-replays
+pnpm exec wrangler r2 bucket create adabuild-replays
 
 # 3. Queue
-pnpm exec wrangler queues create burrow-match-results
+pnpm exec wrangler queues create adabuild-match-results
 
 # 4. Token signing secret
 pnpm exec wrangler secret put MATCH_TOKEN_SECRET
@@ -48,15 +48,15 @@ permissions still control access to the actual infrastructure.
 ## Flow in production
 
 1. Browser loads client from Workers Static Assets.
-2. `POST /api/queue` → Matchmaker DO groups players, allocates a match ID,
-   pre-warms the match container, returns a signed short-lived match token.
+2. `POST /api/session` → Matchmaker DO validates and rate-limits the request,
+   then returns a signed, short-lived token for the selected room.
 3. Client opens `wss://…/ws?token=…` → gateway verifies the token → routes the
    upgrade to that match's `MatchDO` → proxied into the container.
 4. The container runs the same authoritative code as local dev
    (`MODE=container`, one match per instance) and exits after the match plus a
    reconnection grace period.
-5. Match results flow through `burrow-match-results` (Queue) into D1 with
-   idempotent `INSERT OR IGNORE` writes.
+5. The provisioned `adabuild-match-results` Queue has an idempotent D1 consumer
+   for match-result persistence. R2 is reserved for replay and snapshot storage.
 
 Before operating the service, review the account's current Containers limits,
 configure an appropriate `max_instances`, and validate the full staging flow.

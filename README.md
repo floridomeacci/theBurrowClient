@@ -137,10 +137,11 @@ pnpm --filter @burrow/match-server exec tsx src/smoke.ts
 
 ## Deployment
 
-The production target uses Cloudflare Workers Static Assets, Durable Objects,
-Containers, D1, R2, and Queues. Deployment configuration contains placeholders
-only; account identifiers and secrets are intentionally excluded from version
-control. See [docs/deploy.md](./docs/deploy.md) for the setup sequence.
+The production site is <https://adabuild.xyz>. It uses Cloudflare Workers
+Static Assets, Durable Objects, Containers, D1, R2, and Queues. Credentials and
+secret values are intentionally excluded from version control; the D1 binding
+identifier in Wrangler configuration is non-secret deployment metadata. See
+[docs/deploy.md](./docs/deploy.md) for the setup sequence.
 
 The first `pnpm run deploy` run creates a deployment password. Only a salted,
 slow-derived digest is saved, outside the repository in the user's configuration

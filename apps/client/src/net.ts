@@ -23,9 +23,15 @@ export interface NetHandlers {
   onClose(status: { attempt: number; delayMs: number; wasConnected: boolean }): void;
 }
 
-/** Resolve the WS endpoint. Development uses Vite's same-origin proxy so the
- * browser never depends on a second public port or hits mixed-content rules. */
-export function wsUrl(room: string, name: string, forceDev = false, mapSize?: number): string {
+interface SessionResponse {
+  token: string;
+}
+
+export type WebSocketEndpoint = string | (() => Promise<string>);
+
+/** Resolve a short-lived WebSocket URL. Local development uses Vite's proxy;
+ * production obtains a signed same-origin session from the edge gateway. */
+export async function wsUrl(room: string, name: string, forceDev = false, mapSize?: number): Promise<string> {
   const params = new URLSearchParams({ room, name });
   if (forceDev || new URLSearchParams(location.search).get("dev") === "1") params.set("dev", "1");
   if (mapSize !== undefined) params.set("size", String(mapSize));
@@ -33,7 +39,20 @@ export function wsUrl(room: string, name: string, forceDev = false, mapSize?: nu
   const explicit = env?.VITE_WS_URL as string | undefined;
   if (explicit) return `${explicit}/ws?${params}`;
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  return `${proto}://${location.host}/ws?${params}`;
+  if (env?.DEV) return `${proto}://${location.host}/ws?${params}`;
+
+  const response = await fetch("/api/session", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({ room, name })
+  });
+  if (!response.ok) throw new Error(`session request failed (${response.status})`);
+  const session = await response.json() as SessionResponse;
+  if (typeof session.token !== "string" || session.token.length === 0) {
+    throw new Error("session response did not contain a token");
+  }
+  return `${proto}://${location.host}/ws?token=${encodeURIComponent(session.token)}`;
 }
 
 export class Net {
@@ -44,17 +63,32 @@ export class Net {
   private openedBefore = false;
   connected = false;
 
-  connect(url: string, handlers: NetHandlers): void {
+  connect(endpoint: WebSocketEndpoint, handlers: NetHandlers): void {
     this.close();
     const generation = this.generation;
     this.attempt = 0;
     this.openedBefore = false;
-    this.open(url, handlers, generation);
+    void this.open(endpoint, handlers, generation);
   }
 
-  private open(url: string, handlers: NetHandlers, generation: number): void {
+  private async open(endpoint: WebSocketEndpoint, handlers: NetHandlers, generation: number): Promise<void> {
     if (generation !== this.generation) return;
-    const ws = new WebSocket(url);
+    let url: string;
+    try {
+      url = typeof endpoint === "function" ? await endpoint() : endpoint;
+    } catch {
+      this.scheduleReconnect(endpoint, handlers, generation, false);
+      return;
+    }
+    if (generation !== this.generation) return;
+
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(url);
+    } catch {
+      this.scheduleReconnect(endpoint, handlers, generation, false);
+      return;
+    }
     let openedThisSocket = false;
     ws.binaryType = "arraybuffer";
     this.ws = ws;
@@ -72,15 +106,8 @@ export class Net {
     };
     ws.onclose = () => {
       if (generation !== this.generation) return;
-      this.connected = false;
       if (this.ws === ws) this.ws = null;
-      this.attempt++;
-      const delayMs = Math.min(3000, 250 * 2 ** Math.min(4, this.attempt - 1));
-      handlers.onClose({ attempt: this.attempt, delayMs, wasConnected: openedThisSocket });
-      this.retryTimer = window.setTimeout(() => {
-        this.retryTimer = null;
-        this.open(url, handlers, generation);
-      }, delayMs);
+      this.scheduleReconnect(endpoint, handlers, generation, openedThisSocket);
     };
     ws.onmessage = (ev) => {
       if (typeof ev.data === "string") {
@@ -108,6 +135,23 @@ export class Net {
           break;
       }
     };
+  }
+
+  private scheduleReconnect(
+    endpoint: WebSocketEndpoint,
+    handlers: NetHandlers,
+    generation: number,
+    wasConnected: boolean
+  ): void {
+    if (generation !== this.generation) return;
+    this.connected = false;
+    this.attempt++;
+    const delayMs = Math.min(3000, 250 * 2 ** Math.min(4, this.attempt - 1));
+    handlers.onClose({ attempt: this.attempt, delayMs, wasConnected });
+    this.retryTimer = window.setTimeout(() => {
+      this.retryTimer = null;
+      void this.open(endpoint, handlers, generation);
+    }, delayMs);
   }
 
   sendInput(m: InputMsg): void {

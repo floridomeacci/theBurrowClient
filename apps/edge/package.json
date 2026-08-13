@@ -6,8 +6,8 @@
     "dev": "wrangler dev",
     "typecheck": "tsc -p tsconfig.json",
     "test": "echo 'no tests'",
-    "db:migrate": "wrangler d1 migrations apply burrow-db --remote",
-    "db:migrate:local": "wrangler d1 migrations apply burrow-db --local"
+    "db:migrate": "wrangler d1 migrations apply adabuild-db --remote",
+    "db:migrate:local": "wrangler d1 migrations apply adabuild-db --local"
   },
   "dependencies": {
     "@cloudflare/containers": "^0.3.7"

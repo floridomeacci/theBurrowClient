@@ -444,7 +444,7 @@ function join(): void {
   setLobbyConnection("Contacting match server…");
   ($("start-btn") as HTMLButtonElement).style.display = "none";
   $("lobby-host-note").style.display = "block";
-  net.connect(wsUrl(pendingRoom, playerName, requestedDevMode, pendingMapSize), {
+  net.connect(() => wsUrl(pendingRoom, playerName, requestedDevMode, pendingMapSize), {
     onOpen: (reconnected) => {
       $("menu-status").textContent = "";
       if (reconnected && mode === "game") log("Connection restored.");
